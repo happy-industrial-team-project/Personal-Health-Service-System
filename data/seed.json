@@ -1,0 +1,230 @@
+{
+  "schemaVersion": 1,
+  "users": [
+    {
+      "id": "user_demo_robert",
+      "email": "demo@health.local",
+      "name": "Robert Lee",
+      "role": "patient",
+      "password": {
+        "algorithm": "scrypt",
+        "salt": "phss-demo-user-2026",
+        "hash": "vDIBZ3o55iNixnduZDcKAqPkNRNaBWXiUMwuQhB42/xHT0WyQg+/evbo1GxP/oeJWKuJ6aFQ/fiZfQmBqMleOg==",
+        "keyLength": 64
+      },
+      "createdAt": "2026-09-01T00:00:00.000Z"
+    }
+  ],
+  "sessions": [],
+  "records": [
+    {
+      "id": "record_seed_annual_exam",
+      "ownerId": "user_demo_robert",
+      "type": "medical_report",
+      "title": "Annual Health Examination",
+      "description": "Blood count, liver and kidney function, and ECG. Fasting glucose was slightly elevated; other key results were within the expected range.",
+      "occurredAt": "2026-09-10T09:00:00.000Z",
+      "source": "hospital",
+      "organization": "Riverside General Hospital",
+      "createdAt": "2026-09-10T10:00:00.000Z",
+      "updatedAt": "2026-09-10T10:00:00.000Z"
+    },
+    {
+      "id": "record_seed_pressure_log",
+      "ownerId": "user_demo_robert",
+      "type": "health_metric",
+      "title": "Home Blood Pressure Log",
+      "description": "Seven recent home readings. Systolic pressure ranged from 121–132 mmHg and diastolic pressure from 76–84 mmHg.",
+      "occurredAt": "2026-09-09T08:00:00.000Z",
+      "source": "self",
+      "organization": null,
+      "createdAt": "2026-09-09T08:05:00.000Z",
+      "updatedAt": "2026-09-09T08:05:00.000Z"
+    },
+    {
+      "id": "record_seed_atorvastatin",
+      "ownerId": "user_demo_robert",
+      "type": "medication",
+      "title": "Atorvastatin 10 mg",
+      "description": "Take once each evening as directed. Contact a clinician if discomfort occurs.",
+      "occurredAt": "2026-08-21T11:00:00.000Z",
+      "source": "clinician",
+      "organization": "Community Health Center",
+      "createdAt": "2026-08-21T11:10:00.000Z",
+      "updatedAt": "2026-08-21T11:10:00.000Z"
+    },
+    {
+      "id": "record_seed_penicillin",
+      "ownerId": "user_demo_robert",
+      "type": "allergy",
+      "title": "Penicillin Allergy",
+      "description": "A rash occurred after previous penicillin use. Authorized clinicians can view but cannot edit this field.",
+      "occurredAt": "2025-11-06T15:00:00.000Z",
+      "source": "self",
+      "organization": null,
+      "createdAt": "2025-11-06T15:10:00.000Z",
+      "updatedAt": "2025-11-06T15:10:00.000Z"
+    },
+    {
+      "id": "record_seed_hyperlipidemia",
+      "ownerId": "user_demo_robert",
+      "type": "medical_history",
+      "title": "Hyperlipidemia Follow-up",
+      "description": "Diet management and regular lipid checks were recommended. The original hospital record cannot be overwritten.",
+      "occurredAt": "2025-07-14T14:00:00.000Z",
+      "source": "hospital",
+      "organization": "Lakeside Community Hospital",
+      "createdAt": "2025-07-14T14:30:00.000Z",
+      "updatedAt": "2025-07-14T14:30:00.000Z"
+    }
+  ],
+  "measurements": [
+    {
+      "id": "measurement_seed_bp_s_1",
+      "ownerId": "user_demo_robert",
+      "metric": "blood_pressure_systolic",
+      "value": 126,
+      "unit": "mmHg",
+      "measuredAt": "2026-09-13T00:30:00.000Z",
+      "source": "device",
+      "notes": null,
+      "createdAt": "2026-09-13T00:31:00.000Z"
+    },
+    {
+      "id": "measurement_seed_bp_d_1",
+      "ownerId": "user_demo_robert",
+      "metric": "blood_pressure_diastolic",
+      "value": 78,
+      "unit": "mmHg",
+      "measuredAt": "2026-09-13T00:30:00.000Z",
+      "source": "device",
+      "notes": null,
+      "createdAt": "2026-09-13T00:31:00.000Z"
+    },
+    {
+      "id": "measurement_seed_glucose_1",
+      "ownerId": "user_demo_robert",
+      "metric": "blood_glucose",
+      "value": 6.2,
+      "unit": "mmol/L",
+      "measuredAt": "2026-09-13T00:30:00.000Z",
+      "source": "manual",
+      "notes": "Fasting reading",
+      "createdAt": "2026-09-13T00:31:00.000Z"
+    },
+    {
+      "id": "measurement_seed_heart_1",
+      "ownerId": "user_demo_robert",
+      "metric": "heart_rate",
+      "value": 72,
+      "unit": "bpm",
+      "measuredAt": "2026-09-13T00:30:00.000Z",
+      "source": "device",
+      "notes": "Resting",
+      "createdAt": "2026-09-13T00:31:00.000Z"
+    },
+    {
+      "id": "measurement_seed_bp_s_2",
+      "ownerId": "user_demo_robert",
+      "metric": "blood_pressure_systolic",
+      "value": 128,
+      "unit": "mmHg",
+      "measuredAt": "2026-09-11T00:42:00.000Z",
+      "source": "device",
+      "notes": null,
+      "createdAt": "2026-09-11T00:43:00.000Z"
+    },
+    {
+      "id": "measurement_seed_bp_d_2",
+      "ownerId": "user_demo_robert",
+      "metric": "blood_pressure_diastolic",
+      "value": 80,
+      "unit": "mmHg",
+      "measuredAt": "2026-09-11T00:42:00.000Z",
+      "source": "device",
+      "notes": null,
+      "createdAt": "2026-09-11T00:43:00.000Z"
+    },
+    {
+      "id": "measurement_seed_glucose_2",
+      "ownerId": "user_demo_robert",
+      "metric": "blood_glucose",
+      "value": 5.7,
+      "unit": "mmol/L",
+      "measuredAt": "2026-09-11T00:42:00.000Z",
+      "source": "manual",
+      "notes": "Fasting reading",
+      "createdAt": "2026-09-11T00:43:00.000Z"
+    },
+    {
+      "id": "measurement_seed_heart_2",
+      "ownerId": "user_demo_robert",
+      "metric": "heart_rate",
+      "value": 70,
+      "unit": "bpm",
+      "measuredAt": "2026-09-11T00:42:00.000Z",
+      "source": "device",
+      "notes": "Resting",
+      "createdAt": "2026-09-11T00:43:00.000Z"
+    }
+  ],
+  "permissions": [
+    {
+      "id": "permission_seed_carter",
+      "ownerId": "user_demo_robert",
+      "granteeName": "Dr. William Carter",
+      "granteeType": "clinician",
+      "organization": "Riverside General Hospital",
+      "scopes": [
+        "records:read",
+        "measurements:read"
+      ],
+      "status": "active",
+      "expiresAt": "2027-03-01T18:00:00.000Z",
+      "createdAt": "2026-09-12T10:00:00.000Z",
+      "revokedAt": null
+    }
+  ],
+  "auditEvents": [
+    {
+      "id": "audit_seed_record_created",
+      "subjectUserId": "user_demo_robert",
+      "actorUserId": "user_demo_robert",
+      "action": "record.create",
+      "resourceType": "health_record",
+      "resourceId": "record_seed_pressure_log",
+      "outcome": "success",
+      "createdAt": "2026-09-13T00:31:00.000Z",
+      "metadata": {
+        "source": "seed"
+      }
+    },
+    {
+      "id": "audit_seed_permission_created",
+      "subjectUserId": "user_demo_robert",
+      "actorUserId": "user_demo_robert",
+      "action": "permission.create",
+      "resourceType": "permission",
+      "resourceId": "permission_seed_carter",
+      "outcome": "success",
+      "createdAt": "2026-09-12T10:00:00.000Z",
+      "metadata": {
+        "source": "seed"
+      }
+    },
+    {
+      "id": "audit_seed_failed_login",
+      "subjectUserId": "user_demo_robert",
+      "actorUserId": null,
+      "action": "auth.login",
+      "resourceType": "session",
+      "resourceId": null,
+      "outcome": "failure",
+      "createdAt": "2026-09-12T15:16:00.000Z",
+      "metadata": {
+        "reason": "invalid_credentials",
+        "source": "seed"
+      }
+    }
+  ]
+}
