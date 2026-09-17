@@ -10,7 +10,10 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "typecheck": "tsc --noEmit --incremental false",
+    "db:check": "node scripts/database-check.mjs",
+    "check": "tsc --noEmit --incremental false && eslint . --ignore-pattern dist --ignore-pattern .next && vinext check"
   },
   "dependencies": {
     "next": "16.2.6",

@@ -8,23 +8,28 @@ where node >nul 2>nul
 if errorlevel 1 (
   echo.
   echo Node.js is not installed.
-  echo Install Node.js 22 or later from https://nodejs.org/ and run this file again.
+  echo Install Node.js 22.13 or later from https://nodejs.org/ and run this file again.
   echo.
   pause
   exit /b 1
 )
 
-for /f "delims=" %%V in ('node -p "Number(process.versions.node.split('.')[0])"') do set NODE_MAJOR=%%V
-if %NODE_MAJOR% LSS 22 (
+node -e "const [major, minor] = process.versions.node.split('.').map(Number); process.exit(major > 22 || (major === 22 && minor >= 13) ? 0 : 1)"
+if errorlevel 1 (
   echo.
-  echo Node.js 22 or later is required. Your installed version is:
+  echo Node.js 22.13 or later is required. Your installed version is:
   node --version
   echo.
   pause
   exit /b 1
 )
 
-if not exist "node_modules\vinext" (
+set NEED_INSTALL=0
+if not exist "node_modules\.modules.yaml" set NEED_INSTALL=1
+if not exist "node_modules\.bin\vinext.cmd" set NEED_INSTALL=1
+if not exist "node_modules\next\package.json" set NEED_INSTALL=1
+
+if "%NEED_INSTALL%"=="1" (
   echo.
   echo First-time setup: installing project dependencies...
   echo Internet access is required for this step only.
