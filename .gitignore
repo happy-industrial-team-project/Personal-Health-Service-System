@@ -28,6 +28,15 @@ yarn-error.log*
 
 # local environment
 .env*
+!.env.example
+
+# local course-demo data (data/seed.json is the tracked bootstrap/migration source)
+/data/store.json
+/data/*.tmp
+/data/*.sqlite
+/data/*.sqlite-journal
+/data/*.sqlite-wal
+/data/*.sqlite-shm
 
 # deployment and generated files
 .vercel
