@@ -138,13 +138,15 @@ type ChartScale = {
   minimum: number;
   maximum: number;
   step: number;
+  referenceMinimum: number;
+  referenceMaximum: number;
 };
 
 const chartScales: Record<TrendKey, ChartScale> = {
-  systolic: { minimum: 110, maximum: 140, step: 10 },
-  diastolic: { minimum: 60, maximum: 100, step: 10 },
-  glucose: { minimum: 4.5, maximum: 7, step: 0.5 },
-  heart: { minimum: 55, maximum: 90, step: 5 },
+  systolic: { minimum: 90, maximum: 140, step: 10, referenceMinimum: 90, referenceMaximum: 129 },
+  diastolic: { minimum: 60, maximum: 100, step: 10, referenceMinimum: 60, referenceMaximum: 84 },
+  glucose: { minimum: 3.5, maximum: 7, step: 0.5, referenceMinimum: 3.9, referenceMaximum: 6.1 },
+  heart: { minimum: 50, maximum: 110, step: 10, referenceMinimum: 60, referenceMaximum: 100 },
 };
 
 function chartNumber(value: number): string {
@@ -162,6 +164,7 @@ function MeasurementLineChart({
   label: string;
   compact?: boolean;
 }) {
+  const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
   const data = measurements.slice(0, 7).reverse();
   const preferredScale = chartScales[trend];
   const values = data.map((measurement) => measurement.value);
@@ -190,10 +193,19 @@ function MeasurementLineChart({
     y: top + ((maximum - measurement.value) / valueRange) * plotHeight,
   }));
   const stroke = trend === 'diastolic' || trend === 'glucose' ? 'var(--orange)' : 'var(--green-2)';
+  const referenceTop = top + ((maximum - preferredScale.referenceMaximum) / valueRange) * plotHeight;
+  const referenceBottom = top + ((maximum - preferredScale.referenceMinimum) / valueRange) * plotHeight;
+  const activePoint = activePointIndex === null ? null : points[activePointIndex] ?? null;
+  const tooltip = activePoint ? {
+    x: Math.min(width - right - 72, Math.max(left + 72, activePoint.x)),
+    y: activePoint.y > top + 65 ? activePoint.y - 58 : activePoint.y + 18,
+    date: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(activePoint.measurement.measuredAt)),
+  } : null;
 
   return (
     <div className={compact ? 'line-chart compact' : 'line-chart'}>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
+        <rect className="chart-reference-band" x={left} y={referenceTop} width={plotWidth} height={Math.max(referenceBottom - referenceTop, 1)} />
         {ticks.map((tick) => {
           const y = top + ((maximum - tick) / valueRange) * plotHeight;
           return (
@@ -204,16 +216,18 @@ function MeasurementLineChart({
           );
         })}
         {points.length > 0 && <polyline className="chart-line" points={points.map((point) => `${point.x},${point.y}`).join(' ')} style={{ stroke }} />}
-        {points.map(({ measurement, x, y }) => (
-          <g key={measurement.id}>
+        {points.map(({ measurement, x, y }, index) => (
+          <g className="chart-point-group" key={measurement.id} tabIndex={0} aria-label={`${formatDate(measurement.measuredAt)}: ${measurement.value} ${measurement.unit}`} onMouseEnter={() => setActivePointIndex(index)} onMouseLeave={() => setActivePointIndex(null)} onFocus={() => setActivePointIndex(index)} onBlur={() => setActivePointIndex(null)} onClick={() => setActivePointIndex(index)}>
             <circle className="chart-point" cx={x} cy={y} r={compact ? 4 : 5} style={{ stroke }}>
               <title>{`${formatDate(measurement.measuredAt)}: ${measurement.value} ${measurement.unit}`}</title>
             </circle>
             <text className="chart-x-label" x={x} y={height - 12} textAnchor="middle">{new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(measurement.measuredAt))}</text>
           </g>
         ))}
+        {activePoint && tooltip && <g className="chart-tooltip" aria-hidden="true"><rect x={tooltip.x - 68} y={tooltip.y} width={136} height={44} rx={8} /><text x={tooltip.x} y={tooltip.y + 17} textAnchor="middle">{tooltip.date}</text><text className="chart-tooltip-value" x={tooltip.x} y={tooltip.y + 34} textAnchor="middle">{activePoint.measurement.value} {activePoint.measurement.unit}</text></g>}
         {points.length === 0 && <text className="chart-empty-label" x={left + plotWidth / 2} y={top + plotHeight / 2} textAnchor="middle">No saved readings</text>}
       </svg>
+      <div className="chart-reference-legend"><i />General reference range <strong>{chartNumber(preferredScale.referenceMinimum)}–{chartNumber(preferredScale.referenceMaximum)} {data[0]?.unit ?? (trend === 'glucose' ? 'mmol/L' : trend === 'heart' ? 'bpm' : 'mmHg')}</strong></div>
     </div>
   );
 }
@@ -424,6 +438,24 @@ export default function Home() {
     } satisfies Record<TrendKey, { name: string; value: string; unit: string; state: string; tone: string; updatedAt: string | null; detail: string }>;
   }, [measurements]);
 
+  const hasBloodPressure = trendData.systolic.value !== '—' && trendData.diastolic.value !== '—';
+  const bloodPressureNeedsReview = trendData.systolic.tone === 'orange' || trendData.diastolic.tone === 'orange';
+  const dashboardTrendData = [
+    {
+      key: 'pressure',
+      trend: dashboardPressureTrend,
+      name: 'Blood Pressure',
+      value: hasBloodPressure ? `${trendData.systolic.value}/${trendData.diastolic.value}` : '—',
+      unit: 'mmHg',
+      state: bloodPressureNeedsReview ? 'Review reading' : 'Within demo range',
+      tone: bloodPressureNeedsReview ? 'orange' : 'green',
+      updatedAt: trendData.systolic.updatedAt ?? trendData.diastolic.updatedAt,
+      detail: hasBloodPressure ? `Latest saved reading is ${trendData.systolic.value}/${trendData.diastolic.value} mmHg.` : 'Add both systolic and diastolic readings to see a summary.',
+    },
+    { key: 'glucose', trend: 'glucose' as const, ...trendData.glucose },
+    { key: 'heart', trend: 'heart' as const, ...trendData.heart },
+  ];
+
   const activePermissions = permissions.filter((permission) => permission.status === 'active');
   const expiredPermissions = permissions.filter((permission) => permission.status === 'expired');
   const revokedPermissions = permissions.filter((permission) => permission.status === 'revoked');
@@ -586,9 +618,9 @@ export default function Home() {
             {activeView !== 'overview' && <header className="page-heading"><div><p className="eyebrow">PERSONAL HEALTH SERVICE</p><h1>{pageTitle[activeView][0]}</h1><p>{pageTitle[activeView][1]}</p></div><span className="demo-label">LOCAL DEMO DATA</span></header>}
             {activeView === 'overview' && <>
               <section className="welcome"><div><p className="eyebrow">SIGNED-IN LOCAL COURSE DEMO</p><h1>Welcome, {user?.name.split(' ')[0]}</h1><p>Your latest server-backed health summary is ready.</p></div><button className="primary" onClick={() => openModal('measure')}>＋ Record Health Data</button></section>
-              <section className="metrics" aria-label="Latest health metrics">{(Object.entries(trendData) as Array<[TrendKey, (typeof trendData)[TrendKey]]>).map(([key, item]) => <button className="metric" key={key} onClick={() => { setTrend(key); switchView('trends'); }}><span className="metric-head"><span>{item.name}</span><b className={item.tone}>{item.value === '—' ? 'No data' : item.state}</b></span><span className="metric-value"><strong>{item.value}</strong><small>{item.unit}</small></span><span className="metric-foot">{item.updatedAt ? `Saved ${formatDateTime(item.updatedAt)}` : 'Add a measurement to begin'}</span></button>)}<article className="metric score"><span className="metric-head"><span>Saved Measurements</span><b>Server-backed</b></span><span className="metric-value"><strong>{measurements.length}</strong><small>entries</small></span><span className="metric-foot">Across {new Set(measurements.map((item) => item.metric)).size} metric types</span></article></section>
+              <section className="metrics" aria-label="Latest health metrics">{dashboardTrendData.map((item) => <button className="metric" key={item.key} onClick={() => { setTrend(item.trend); switchView('trends'); }}><span className="metric-head"><span>{item.name}</span><b className={item.tone}>{item.value === '—' ? 'No data' : item.state}</b></span><span className="metric-value"><strong>{item.value}</strong><small>{item.unit}</small></span><span className="metric-foot">{item.updatedAt ? `Saved ${formatDateTime(item.updatedAt)}` : 'Add a measurement to begin'}</span></button>)}<article className="metric score"><span className="metric-head"><span>Saved Measurements</span><b>Server-backed</b></span><span className="metric-value"><strong>{measurements.length}</strong><small>entries</small></span><span className="metric-foot">Across {new Set(measurements.map((item) => item.metric)).size} metric types</span></article></section>
               <section className="dashboard-grid"><article className="panel trend-panel"><div className="panel-title"><div><p className="eyebrow">RECENT SAVED READINGS</p><h2>Blood Pressure Trend</h2></div><button className="text-button" onClick={() => { setTrend(dashboardPressureTrend); switchView('trends'); }}>View All</button></div><div className="pressure-chart-toolbar" role="group" aria-label="Choose blood pressure type"><button type="button" className={dashboardPressureTrend === 'systolic' ? 'selected' : ''} aria-pressed={dashboardPressureTrend === 'systolic'} onClick={() => setDashboardPressureTrend('systolic')}><i className="dot dark" />Systolic Pressure</button><button type="button" className={dashboardPressureTrend === 'diastolic' ? 'selected' : ''} aria-pressed={dashboardPressureTrend === 'diastolic'} onClick={() => setDashboardPressureTrend('diastolic')}><i className="dot orange" />Diastolic Pressure</button><small>mmHg</small></div><MeasurementLineChart compact trend={dashboardPressureTrend} measurements={valuesForTrend(measurements, dashboardPressureTrend)} label={`${dashboardPressureTrend === 'systolic' ? 'Systolic' : 'Diastolic'} blood pressure line chart in millimetres of mercury`} /></article>
-                <aside className="panel alert-panel"><div className="panel-title"><div><p className="eyebrow">RULE-BASED SUMMARY</p><h2>Latest Reading Check</h2></div><span className="count">{Object.values(trendData).filter((item) => item.tone === 'orange').length}</span></div>{Object.values(trendData).some((item) => item.tone === 'orange') ? Object.values(trendData).filter((item) => item.tone === 'orange').slice(0, 1).map((item) => <div className="alert-card" key={item.name}><span className="alert-icon">!</span><div><strong>{item.name} is outside the demo threshold</strong><p>{item.detail} Recheck under comparable conditions or consult a qualified professional if concerned.</p></div></div>) : <div className="empty-state"><strong>No reading is flagged</strong><p>This simple demo rule is not a diagnosis.</p></div>}<div className="next-check"><span>Important limitation</span><strong>Course-demo guidance only</strong><small>Thresholds are illustrative and do not replace professional medical advice.</small></div></aside></section>
+                <aside className="panel alert-panel"><div className="panel-title"><div><p className="eyebrow">RULE-BASED SUMMARY</p><h2>Latest Reading Check</h2></div><span className="count">{dashboardTrendData.filter((item) => item.tone === 'orange').length}</span></div>{dashboardTrendData.some((item) => item.tone === 'orange') ? dashboardTrendData.filter((item) => item.tone === 'orange').slice(0, 1).map((item) => <div className="alert-card" key={item.name}><span className="alert-icon">!</span><div><strong>{item.name} is outside the demo threshold</strong><p>{item.detail} Recheck under comparable conditions or consult a qualified professional if concerned.</p></div></div>) : <div className="empty-state"><strong>No reading is flagged</strong><p>This simple demo rule is not a diagnosis.</p></div>}<div className="next-check"><span>Important limitation</span><strong>Course-demo guidance only</strong><small>Thresholds are illustrative and do not replace professional medical advice.</small></div></aside></section>
               <section className="lower-grid"><article className="panel compact-list"><div className="panel-title"><div><p className="eyebrow">RECENT RECORDS</p><h2>Saved Health Information</h2></div><button className="text-button" onClick={() => switchView('records')}>Open Records</button></div>{records.slice(0, 3).map((record) => <button className="mini-row" key={record.id} onClick={() => { setSelectedRecord(record); setModal('detail'); }}><span className="record-icon">{recordTypeIcons[record.type]}</span><span><strong>{record.title}</strong><small>{record.organization ?? recordSourceLabels[record.source]} · {formatDate(record.occurredAt)}</small></span><b aria-hidden="true">›</b></button>)}{records.length === 0 && <div className="empty-state"><strong>No records yet</strong><p>Add a record to populate this section.</p></div>}</article>
                 <article className="panel consent-summary"><p className="eyebrow">ACTIVE PERMISSION RECORD</p>{activePermissions[0] ? <><h2>{activePermissions.length} temporary sharing decision{activePermissions.length === 1 ? ' is' : 's are'} recorded</h2><div className="doctor-line"><span className="doctor-avatar">{initials(activePermissions[0].granteeName)}</span><span><strong>{activePermissions[0].granteeName}</strong><small>{scopeLabel(activePermissions[0].scopes)} · Expires {formatDateTime(activePermissions[0].expiresAt)}</small></span></div></> : <><h2>No active sharing permission</h2><p>No active consent record exists right now.</p></>}<button className="secondary" onClick={() => switchView('permissions')}>Manage Permissions</button></article></section>
             </>}

@@ -130,10 +130,20 @@ input::placeholder,textarea::placeholder { color:var(--muted); opacity:1; }
 .pressure-chart-toolbar small { margin-left:auto; color:var(--muted); font-size:var(--text-small); }
 .line-chart { width:100%; margin-top:10px; }
 .line-chart svg { display:block; width:100%; height:auto; overflow:visible; }
+.chart-reference-band { fill:rgba(94,164,127,.12); }
 .chart-grid-line { stroke:var(--line); stroke-width:1; vector-effect:non-scaling-stroke; }
 .chart-y-label,.chart-x-label,.chart-empty-label { fill:var(--muted); font-family:Inter,Arial,sans-serif; font-size:11px; }
 .chart-line { fill:none; stroke-width:3.5; stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke; }
 .chart-point { fill:var(--paper); stroke-width:3; vector-effect:non-scaling-stroke; }
+.chart-point-group { cursor:pointer; outline:none; }
+.chart-point-group:focus .chart-point { stroke-width:5; }
+.chart-tooltip { pointer-events:none; }
+.chart-tooltip rect { fill:#173e33; filter:drop-shadow(0 3px 6px rgba(20,45,37,.2)); }
+.chart-tooltip text { fill:#d8e8e1; font-family:Inter,Arial,sans-serif; font-size:11px; }
+.chart-tooltip .chart-tooltip-value { fill:#fff; font-size:12px; font-weight:800; }
+.chart-reference-legend { display:flex; align-items:center; gap:6px; margin:2px 0 0 52px; color:var(--muted); font-size:var(--text-caption); }
+.chart-reference-legend i { width:17px; height:8px; border-radius:3px; background:rgba(94,164,127,.2); }
+.chart-reference-legend strong { color:var(--green); }
 .trend-large .line-chart { margin-top:12px; }
 
 @media (max-width:1180px) {
@@ -146,6 +156,7 @@ input::placeholder,textarea::placeholder { color:var(--muted); opacity:1; }
   .pressure-chart-toolbar { align-items:stretch; flex-wrap:wrap; }
   .pressure-chart-toolbar button { flex:1 1 150px; justify-content:center; }
   .pressure-chart-toolbar small { width:100%; margin-left:0; text-align:right; }
+  .chart-reference-legend { margin-left:44px; }
   .chart-y-label,.chart-x-label,.chart-empty-label { font-size:13px; }
 }
 .mobile-menu-button,.mobile-nav { display:none; }

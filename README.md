@@ -21,6 +21,7 @@ Do not reuse these credentials for a real account. The password is public becaus
 - Clinician access-grant creation, expiry handling, listing, and revocation.
 - Server-generated audit events for sign-in, sign-out, reads, writes, and permission changes.
 - Local SQLite persistence with transactions, relational constraints, automatic schema migrations, and durable rollback journaling, so demo changes survive a browser refresh and server restart.
+- Numeric line charts with point details, clearly marked demo reference ranges, and a systolic/diastolic view switch within one blood-pressure chart.
 - Responsive navigation, keyboard-operable dialogs and forms, visible focus states, readable text sizing, and reduced-motion support.
 - Conservative response headers for framing, MIME sniffing, referrer data, and unused browser capabilities.
 
