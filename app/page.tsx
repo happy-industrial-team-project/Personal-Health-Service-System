@@ -18,7 +18,7 @@ type View = 'overview' | 'records' | 'trends' | 'permissions' | 'audit' | 'secur
 type Modal = 'measure' | 'record' | 'grant' | 'detail' | null;
 type AuthState = 'checking' | 'anonymous' | 'authenticated' | 'error';
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
-type TrendKey = 'pressure' | 'glucose' | 'heart';
+type TrendKey = 'systolic' | 'diastolic' | 'glucose' | 'heart';
 type PermissionScope = 'records:read' | 'measurements:read';
 
 const DEMO_EMAIL = 'demo@health.local';
@@ -123,42 +123,99 @@ function latestMeasurement(measurements: Measurement[], metric: MeasurementMetri
   return measurements.find((measurement) => measurement.metric === metric);
 }
 
-function latestBloodPressurePair(measurements: Measurement[]): {
-  systolic: Measurement;
-  diastolic: Measurement;
-} | null {
-  for (const systolic of measurements) {
-    if (systolic.metric !== 'blood_pressure_systolic') continue;
-    const diastolic = measurements.find(
-      (candidate) => candidate.metric === 'blood_pressure_diastolic'
-        && candidate.measuredAt === systolic.measuredAt,
-    );
-    if (diastolic) return { systolic, diastolic };
-  }
-  return null;
-}
-
 function valuesForTrend(measurements: Measurement[], trend: TrendKey): Measurement[] {
-  const metric: MeasurementMetric = trend === 'pressure'
+  const metric: MeasurementMetric = trend === 'systolic'
     ? 'blood_pressure_systolic'
-    : trend === 'glucose'
-      ? 'blood_glucose'
-      : 'heart_rate';
+    : trend === 'diastolic'
+      ? 'blood_pressure_diastolic'
+      : trend === 'glucose'
+        ? 'blood_glucose'
+        : 'heart_rate';
   return measurements.filter((measurement) => measurement.metric === metric);
 }
 
-function chartClipPath(measurements: Measurement[]): string {
-  const values = measurements.slice(0, 7).reverse().map((measurement) => measurement.value);
-  if (values.length === 0) return 'polygon(0 100%, 0 50%, 100% 50%, 100% 100%)';
-  const minimum = Math.min(...values);
-  const maximum = Math.max(...values);
-  const range = Math.max(maximum - minimum, 1);
-  const points = values.map((value, index) => {
-    const x = values.length === 1 ? 50 : (index / (values.length - 1)) * 100;
-    const y = 18 + ((maximum - value) / range) * 62;
-    return `${x.toFixed(1)}% ${y.toFixed(1)}%`;
-  });
-  return `polygon(0 100%, ${points.join(', ')}, 100% 100%)`;
+type ChartScale = {
+  minimum: number;
+  maximum: number;
+  step: number;
+};
+
+const chartScales: Record<TrendKey, ChartScale> = {
+  systolic: { minimum: 110, maximum: 140, step: 10 },
+  diastolic: { minimum: 60, maximum: 100, step: 10 },
+  glucose: { minimum: 4.5, maximum: 7, step: 0.5 },
+  heart: { minimum: 55, maximum: 90, step: 5 },
+};
+
+function chartNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function MeasurementLineChart({
+  measurements,
+  trend,
+  label,
+  compact = false,
+}: {
+  measurements: Measurement[];
+  trend: TrendKey;
+  label: string;
+  compact?: boolean;
+}) {
+  const data = measurements.slice(0, 7).reverse();
+  const preferredScale = chartScales[trend];
+  const values = data.map((measurement) => measurement.value);
+  const minimumValue = values.length > 0 ? Math.min(...values) : preferredScale.minimum;
+  const maximumValue = values.length > 0 ? Math.max(...values) : preferredScale.maximum;
+  const rawMinimum = Math.min(preferredScale.minimum, minimumValue);
+  const rawMaximum = Math.max(preferredScale.maximum, maximumValue);
+  const step = preferredScale.step * Math.max(1, Math.ceil((rawMaximum - rawMinimum) / (preferredScale.step * 6)));
+  const minimum = Math.floor(rawMinimum / step) * step;
+  const maximum = Math.ceil(rawMaximum / step) * step;
+  const ticks: number[] = [];
+  for (let value = maximum; value >= minimum; value -= step) ticks.push(value);
+
+  const width = 680;
+  const height = compact ? 210 : 260;
+  const left = 52;
+  const right = 18;
+  const top = 16;
+  const bottom = 42;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const valueRange = Math.max(maximum - minimum, preferredScale.step);
+  const points = data.map((measurement, index) => ({
+    measurement,
+    x: data.length === 1 ? left + plotWidth / 2 : left + (index / (data.length - 1)) * plotWidth,
+    y: top + ((maximum - measurement.value) / valueRange) * plotHeight,
+  }));
+  const stroke = trend === 'diastolic' || trend === 'glucose' ? 'var(--orange)' : 'var(--green-2)';
+
+  return (
+    <div className={compact ? 'line-chart compact' : 'line-chart'}>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
+        {ticks.map((tick) => {
+          const y = top + ((maximum - tick) / valueRange) * plotHeight;
+          return (
+            <g key={tick}>
+              <line className="chart-grid-line" x1={left} x2={width - right} y1={y} y2={y} />
+              <text className="chart-y-label" x={left - 10} y={y + 4} textAnchor="end">{chartNumber(tick)}</text>
+            </g>
+          );
+        })}
+        {points.length > 0 && <polyline className="chart-line" points={points.map((point) => `${point.x},${point.y}`).join(' ')} style={{ stroke }} />}
+        {points.map(({ measurement, x, y }) => (
+          <g key={measurement.id}>
+            <circle className="chart-point" cx={x} cy={y} r={compact ? 4 : 5} style={{ stroke }}>
+              <title>{`${formatDate(measurement.measuredAt)}: ${measurement.value} ${measurement.unit}`}</title>
+            </circle>
+            <text className="chart-x-label" x={x} y={height - 12} textAnchor="middle">{new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(measurement.measuredAt))}</text>
+          </g>
+        ))}
+        {points.length === 0 && <text className="chart-empty-label" x={left + plotWidth / 2} y={top + plotHeight / 2} textAnchor="middle">No saved readings</text>}
+      </svg>
+    </div>
+  );
 }
 
 function recordStatus(record: HealthRecord): string {
@@ -190,7 +247,8 @@ export default function Home() {
   const [query, setQuery] = useState('');
   const [recordFilter, setRecordFilter] = useState<RecordType | 'all'>('all');
   const [selectedRecord, setSelectedRecord] = useState<HealthRecord | null>(null);
-  const [trend, setTrend] = useState<TrendKey>('pressure');
+  const [trend, setTrend] = useState<TrendKey>('systolic');
+  const [dashboardPressureTrend, setDashboardPressureTrend] = useState<'systolic' | 'diastolic'>('systolic');
   const [auditFilter, setAuditFilter] = useState<'All Activity' | 'Views' | 'Changes' | 'Failed'>('All Activity');
   const [largeText, setLargeText] = useState(false);
   const [toast, setToast] = useState('');
@@ -350,16 +408,17 @@ export default function Home() {
   }, [modal]);
 
   const trendData = useMemo(() => {
-    const pressurePair = latestBloodPressurePair(measurements);
-    const systolic = pressurePair?.systolic;
-    const diastolic = pressurePair?.diastolic;
+    const systolic = latestMeasurement(measurements, 'blood_pressure_systolic');
+    const diastolic = latestMeasurement(measurements, 'blood_pressure_diastolic');
     const glucose = latestMeasurement(measurements, 'blood_glucose');
     const heart = latestMeasurement(measurements, 'heart_rate');
-    const pressureNeedsReview = Boolean((systolic?.value ?? 0) >= 130 || (diastolic?.value ?? 0) >= 85);
+    const systolicNeedsReview = Boolean(systolic && systolic.value >= 130);
+    const diastolicNeedsReview = Boolean(diastolic && diastolic.value >= 85);
     const glucoseNeedsReview = Boolean(glucose && glucose.value > 6.1);
     const heartNeedsReview = Boolean(heart && (heart.value < 60 || heart.value > 100));
     return {
-      pressure: { name: 'Blood Pressure', value: systolic && diastolic ? `${systolic.value}/${diastolic.value}` : '—', unit: 'mmHg', state: pressureNeedsReview ? 'Review reading' : 'Within demo range', tone: pressureNeedsReview ? 'orange' : 'green', updatedAt: systolic?.measuredAt ?? diastolic?.measuredAt ?? null, detail: systolic && diastolic ? `Latest saved reading is ${systolic.value}/${diastolic.value} mmHg.` : 'Add both systolic and diastolic readings to see a summary.' },
+      systolic: { name: 'Systolic Pressure', value: systolic ? String(systolic.value) : '—', unit: 'mmHg', state: systolicNeedsReview ? 'Review reading' : 'Within demo range', tone: systolicNeedsReview ? 'orange' : 'green', updatedAt: systolic?.measuredAt ?? null, detail: systolic ? `Latest systolic pressure is ${systolic.value} mmHg.` : 'No systolic pressure reading has been saved yet.' },
+      diastolic: { name: 'Diastolic Pressure', value: diastolic ? String(diastolic.value) : '—', unit: 'mmHg', state: diastolicNeedsReview ? 'Review reading' : 'Within demo range', tone: diastolicNeedsReview ? 'orange' : 'green', updatedAt: diastolic?.measuredAt ?? null, detail: diastolic ? `Latest diastolic pressure is ${diastolic.value} mmHg.` : 'No diastolic pressure reading has been saved yet.' },
       glucose: { name: 'Fasting Glucose', value: glucose ? String(glucose.value) : '—', unit: glucose?.unit ?? 'mmol/L', state: glucoseNeedsReview ? 'Review reading' : 'Within demo range', tone: glucoseNeedsReview ? 'orange' : 'green', updatedAt: glucose?.measuredAt ?? null, detail: glucose ? `Latest saved reading is ${glucose.value} ${glucose.unit}.` : 'No glucose reading has been saved yet.' },
       heart: { name: 'Resting Heart Rate', value: heart ? String(heart.value) : '—', unit: heart?.unit ?? 'bpm', state: heartNeedsReview ? 'Review reading' : 'Within demo range', tone: heartNeedsReview ? 'orange' : 'green', updatedAt: heart?.measuredAt ?? null, detail: heart ? `Latest saved reading is ${heart.value} ${heart.unit}.` : 'No heart-rate reading has been saved yet.' },
     } satisfies Record<TrendKey, { name: string; value: string; unit: string; state: string; tone: string; updatedAt: string | null; detail: string }>;
@@ -371,9 +430,14 @@ export default function Home() {
   const failedAuditEvent = auditEvents.find((event) => event.outcome === 'failure');
   const selectedTrendMeasurements = valuesForTrend(measurements, trend);
   const selectedTrendRows = selectedTrendMeasurements.slice(0, 7).map((measurement) => {
-    if (trend !== 'pressure') return { id: measurement.id, time: measurement.measuredAt, result: `${measurement.value} ${measurement.unit}`, source: measurement.source, review: trend === 'glucose' ? measurement.value > 6.1 : measurement.value < 60 || measurement.value > 100 };
-    const diastolic = measurements.find((candidate) => candidate.metric === 'blood_pressure_diastolic' && candidate.measuredAt === measurement.measuredAt);
-    return { id: measurement.id, time: measurement.measuredAt, result: `${measurement.value}/${diastolic?.value ?? '—'} mmHg`, source: measurement.source, review: measurement.value >= 130 || Boolean(diastolic && diastolic.value >= 85) };
+    const review = trend === 'systolic'
+      ? measurement.value >= 130
+      : trend === 'diastolic'
+        ? measurement.value >= 85
+        : trend === 'glucose'
+          ? measurement.value > 6.1
+          : measurement.value < 60 || measurement.value > 100;
+    return { id: measurement.id, time: measurement.measuredAt, result: `${measurement.value} ${measurement.unit}`, source: measurement.source, review };
   });
 
   const auditRows = auditEvents.map((event) => {
@@ -523,13 +587,13 @@ export default function Home() {
             {activeView === 'overview' && <>
               <section className="welcome"><div><p className="eyebrow">SIGNED-IN LOCAL COURSE DEMO</p><h1>Welcome, {user?.name.split(' ')[0]}</h1><p>Your latest server-backed health summary is ready.</p></div><button className="primary" onClick={() => openModal('measure')}>＋ Record Health Data</button></section>
               <section className="metrics" aria-label="Latest health metrics">{(Object.entries(trendData) as Array<[TrendKey, (typeof trendData)[TrendKey]]>).map(([key, item]) => <button className="metric" key={key} onClick={() => { setTrend(key); switchView('trends'); }}><span className="metric-head"><span>{item.name}</span><b className={item.tone}>{item.value === '—' ? 'No data' : item.state}</b></span><span className="metric-value"><strong>{item.value}</strong><small>{item.unit}</small></span><span className="metric-foot">{item.updatedAt ? `Saved ${formatDateTime(item.updatedAt)}` : 'Add a measurement to begin'}</span></button>)}<article className="metric score"><span className="metric-head"><span>Saved Measurements</span><b>Server-backed</b></span><span className="metric-value"><strong>{measurements.length}</strong><small>entries</small></span><span className="metric-foot">Across {new Set(measurements.map((item) => item.metric)).size} metric types</span></article></section>
-              <section className="dashboard-grid"><article className="panel trend-panel"><div className="panel-title"><div><p className="eyebrow">RECENT SAVED READINGS</p><h2>Blood Pressure Trend</h2></div><button className="text-button" onClick={() => { setTrend('pressure'); switchView('trends'); }}>View All</button></div><div className="legend"><span><i className="dot dark" />Systolic</span><span><i className="dot orange" />Diastolic</span><small>mmHg</small></div><div className="chart" aria-label="Blood pressure trend based on saved measurements"><div className="grid-lines"><span>High</span><span>Mid</span><span>Low</span></div><div className="plot"><div className="area systolic" style={{ clipPath: chartClipPath(measurements.filter((item) => item.metric === 'blood_pressure_systolic')) }} /><div className="area diastolic" style={{ clipPath: chartClipPath(measurements.filter((item) => item.metric === 'blood_pressure_diastolic')) }} /></div></div><div className="dates">{measurements.filter((item) => item.metric === 'blood_pressure_systolic').slice(0, 7).reverse().map((item) => <span key={item.id}>{formatDate(item.measuredAt).replace(', 2026', '')}</span>)}</div></article>
+              <section className="dashboard-grid"><article className="panel trend-panel"><div className="panel-title"><div><p className="eyebrow">RECENT SAVED READINGS</p><h2>Blood Pressure Trend</h2></div><button className="text-button" onClick={() => { setTrend(dashboardPressureTrend); switchView('trends'); }}>View All</button></div><div className="pressure-chart-toolbar" role="group" aria-label="Choose blood pressure type"><button type="button" className={dashboardPressureTrend === 'systolic' ? 'selected' : ''} aria-pressed={dashboardPressureTrend === 'systolic'} onClick={() => setDashboardPressureTrend('systolic')}><i className="dot dark" />Systolic Pressure</button><button type="button" className={dashboardPressureTrend === 'diastolic' ? 'selected' : ''} aria-pressed={dashboardPressureTrend === 'diastolic'} onClick={() => setDashboardPressureTrend('diastolic')}><i className="dot orange" />Diastolic Pressure</button><small>mmHg</small></div><MeasurementLineChart compact trend={dashboardPressureTrend} measurements={valuesForTrend(measurements, dashboardPressureTrend)} label={`${dashboardPressureTrend === 'systolic' ? 'Systolic' : 'Diastolic'} blood pressure line chart in millimetres of mercury`} /></article>
                 <aside className="panel alert-panel"><div className="panel-title"><div><p className="eyebrow">RULE-BASED SUMMARY</p><h2>Latest Reading Check</h2></div><span className="count">{Object.values(trendData).filter((item) => item.tone === 'orange').length}</span></div>{Object.values(trendData).some((item) => item.tone === 'orange') ? Object.values(trendData).filter((item) => item.tone === 'orange').slice(0, 1).map((item) => <div className="alert-card" key={item.name}><span className="alert-icon">!</span><div><strong>{item.name} is outside the demo threshold</strong><p>{item.detail} Recheck under comparable conditions or consult a qualified professional if concerned.</p></div></div>) : <div className="empty-state"><strong>No reading is flagged</strong><p>This simple demo rule is not a diagnosis.</p></div>}<div className="next-check"><span>Important limitation</span><strong>Course-demo guidance only</strong><small>Thresholds are illustrative and do not replace professional medical advice.</small></div></aside></section>
               <section className="lower-grid"><article className="panel compact-list"><div className="panel-title"><div><p className="eyebrow">RECENT RECORDS</p><h2>Saved Health Information</h2></div><button className="text-button" onClick={() => switchView('records')}>Open Records</button></div>{records.slice(0, 3).map((record) => <button className="mini-row" key={record.id} onClick={() => { setSelectedRecord(record); setModal('detail'); }}><span className="record-icon">{recordTypeIcons[record.type]}</span><span><strong>{record.title}</strong><small>{record.organization ?? recordSourceLabels[record.source]} · {formatDate(record.occurredAt)}</small></span><b aria-hidden="true">›</b></button>)}{records.length === 0 && <div className="empty-state"><strong>No records yet</strong><p>Add a record to populate this section.</p></div>}</article>
                 <article className="panel consent-summary"><p className="eyebrow">ACTIVE PERMISSION RECORD</p>{activePermissions[0] ? <><h2>{activePermissions.length} temporary sharing decision{activePermissions.length === 1 ? ' is' : 's are'} recorded</h2><div className="doctor-line"><span className="doctor-avatar">{initials(activePermissions[0].granteeName)}</span><span><strong>{activePermissions[0].granteeName}</strong><small>{scopeLabel(activePermissions[0].scopes)} · Expires {formatDateTime(activePermissions[0].expiresAt)}</small></span></div></> : <><h2>No active sharing permission</h2><p>No active consent record exists right now.</p></>}<button className="secondary" onClick={() => switchView('permissions')}>Manage Permissions</button></article></section>
             </>}
             {activeView === 'records' && <section className="records-view"><div className="toolbar"><div className="filter-tabs">{([['all', 'All'], ...Object.entries(recordTypeLabels).filter(([type]) => type !== 'other')] as Array<[RecordType | 'all', string]>).map(([value, label]) => <button key={value} className={recordFilter === value ? 'selected' : ''} onClick={() => setRecordFilter(value)}>{label}</button>)}</div><button className="primary" onClick={() => openModal('record')}>＋ Add Record</button></div>{recordsError && <p role="alert" style={{ color: 'var(--red)' }}>{recordsError}</p>}<div className="records-layout"><article className="panel records-list"><div className="list-heading"><span>{recordsLoading ? 'Searching…' : `${records.length} records`}</span><small>Results come from the authenticated records API</small></div>{records.map((record) => <button className="record-row" key={record.id} onClick={() => { setSelectedRecord(record); setActionError(''); setModal('detail'); }}><span className="record-icon large">{recordTypeIcons[record.type]}</span><span className="record-main"><span><b>{record.title}</b><em>{recordStatus(record)}</em></span><small>{recordTypeLabels[record.type]} · {record.organization ?? recordSourceLabels[record.source]}</small><p>{record.description || 'No details were provided.'}</p></span><span className="record-date">{formatDate(record.occurredAt)}<b aria-hidden="true">›</b></span></button>)}{!recordsLoading && records.length === 0 && <div className="empty-state"><strong>No matching records</strong><p>Try a shorter search term or choose a different record type.</p></div>}</article><aside className="panel record-guide"><p className="eyebrow">RECORD RULES</p><h2>Clear Data Provenance</h2><dl><div><dt>Self-entered</dt><dd>Created through this form and persisted by the local API</dd></div><div><dt>Hospital source</dt><dd>Seeded source information is shown without pretending to sync a hospital</dd></div><div><dt>Search</dt><dd>Text and type filters are validated and applied by the server</dd></div></dl><button className="secondary" type="button" disabled title="Hospital integration is outside the P0 course-demo scope">Hospital Sync — Not Implemented</button></aside></div></section>}
-            {activeView === 'trends' && <section className="trends-view"><div className="metric-switch">{(Object.entries(trendData) as Array<[TrendKey, (typeof trendData)[TrendKey]]>).map(([key, item]) => <button key={key} className={trend === key ? 'selected' : ''} onClick={() => setTrend(key)}><span>{item.name}</span><strong>{item.value}</strong><small>{item.unit}</small></button>)}</div><div className="trend-detail-grid"><article className="panel trend-large"><div className="panel-title"><div><p className="eyebrow">ALL SAVED READINGS</p><h2>{trendData[trend].name} Trend</h2></div><span className="demo-label">{selectedTrendMeasurements.length} DATA POINTS</span></div><div className="trend-summary"><strong>{trendData[trend].value}</strong><span>{trendData[trend].unit}<b>{trendData[trend].state}</b></span></div><div className={`dynamic-chart ${trend}`}><div className="chart-scale"><span>High</span><span>Mid</span><span>Low</span></div><div className="dynamic-plot"><i style={{ clipPath: chartClipPath(selectedTrendMeasurements) }} /></div></div><div className="month-labels">{selectedTrendMeasurements.slice(0, 6).reverse().map((item) => <span key={item.id}>{formatDate(item.measuredAt).replace(', 2026', '')}</span>)}</div></article><aside className="panel insight"><p className="eyebrow">RULE-BASED SUMMARY</p><h2>{trendData[trend].state}</h2><p>{trendData[trend].detail}</p><div className="advice"><strong>Everyday guidance</strong><p>Measure under consistent conditions and contact a qualified professional if unusual readings persist or you feel unwell.</p></div><small className="disclaimer">This simple course-demo rule is general information only and is not a diagnosis or treatment recommendation.</small></aside></div><article className="panel history-table"><div className="panel-title"><h2>Recent Measurements</h2><button className="text-button" onClick={() => openModal('measure')}>Add Measurement</button></div><div className="table-head"><span>Measured At</span><span>Result</span><span>Demo Check</span><span>Source</span></div>{selectedTrendRows.map((row) => <div className="table-row" key={row.id}><span>{formatDateTime(row.time)}</span><strong>{row.result}</strong><span><i className={row.review ? 'status-dot warn' : 'status-dot'} />{row.review ? 'Review' : 'Within range'}</span><span>{row.source}</span></div>)}{selectedTrendRows.length === 0 && <div className="empty-state"><strong>No saved readings</strong><p>Add a measurement to begin this trend.</p></div>}</article></section>}
+            {activeView === 'trends' && <section className="trends-view"><div className="metric-switch">{(Object.entries(trendData) as Array<[TrendKey, (typeof trendData)[TrendKey]]>).map(([key, item]) => <button key={key} className={trend === key ? 'selected' : ''} onClick={() => setTrend(key)}><span>{item.name}</span><strong>{item.value}</strong><small>{item.unit}</small></button>)}</div><div className="trend-detail-grid"><article className="panel trend-large"><div className="panel-title"><div><p className="eyebrow">ALL SAVED READINGS</p><h2>{trendData[trend].name} Trend</h2></div><span className="demo-label">{selectedTrendMeasurements.length} DATA POINTS</span></div><div className="trend-summary"><strong>{trendData[trend].value}</strong><span>{trendData[trend].unit}<b>{trendData[trend].state}</b></span></div><MeasurementLineChart trend={trend} measurements={selectedTrendMeasurements} label={`${trendData[trend].name} line chart in ${trendData[trend].unit}`} /></article><aside className="panel insight"><p className="eyebrow">RULE-BASED SUMMARY</p><h2>{trendData[trend].state}</h2><p>{trendData[trend].detail}</p><div className="advice"><strong>Everyday guidance</strong><p>Measure under consistent conditions and contact a qualified professional if unusual readings persist or you feel unwell.</p></div><small className="disclaimer">This simple course-demo rule is general information only and is not a diagnosis or treatment recommendation.</small></aside></div><article className="panel history-table"><div className="panel-title"><h2>Recent Measurements</h2><button className="text-button" onClick={() => openModal('measure')}>Add Measurement</button></div><div className="table-head"><span>Measured At</span><span>Result</span><span>Demo Check</span><span>Source</span></div>{selectedTrendRows.map((row) => <div className="table-row" key={row.id}><span>{formatDateTime(row.time)}</span><strong>{row.result}</strong><span><i className={row.review ? 'status-dot warn' : 'status-dot'} />{row.review ? 'Review' : 'Within range'}</span><span>{row.source}</span></div>)}{selectedTrendRows.length === 0 && <div className="empty-state"><strong>No saved readings</strong><p>Add a measurement to begin this trend.</p></div>}</article></section>}
             {activeView === 'permissions' && <section className="permission-view"><div className="consent-hero"><div><p className="eyebrow">MINIMUM NECESSARY ACCESS</p><h2>Your information, your decision</h2><p>Record a recipient, intended read-only scope, and expiry. This P0 API stores and audits the consent decision; a clinician sign-in portal is not implemented yet.</p></div><button className="primary light" onClick={() => openModal('grant')}>＋ Record Permission</button></div>{dataError && <p role="alert" style={{ color: 'var(--red)' }}>{dataError}</p>}<div className="permission-stats"><div><strong>{activePermissions.length}</strong><span>Active Records</span></div><div><strong>{expiredPermissions.length}</strong><span>Expired</span></div><div><strong>{revokedPermissions.length}</strong><span>Revoked</span></div></div><div className="permission-grid"><article className="panel grants"><div className="panel-title"><div><p className="eyebrow">ACTIVE PERMISSION RECORDS</p><h2>Recorded Sharing Decisions</h2></div></div>{activePermissions.length === 0 ? <div className="empty-state"><strong>No active permissions</strong><p>A new sharing decision requires your confirmation.</p></div> : activePermissions.map((permission) => <div className="grant-card" key={permission.id}><div className="doctor-line"><span className="doctor-avatar">{initials(permission.granteeName)}</span><span><strong>{permission.granteeName}</strong><small>{permission.organization ?? permission.granteeType}</small></span><b className="verified">Active</b></div><div className="grant-scope"><span><small>Recorded scope</small><b>{scopeLabel(permission.scopes)}</b></span><span><small>Valid until</small><b>{formatDateTime(permission.expiresAt)}</b></span><span><small>P0 enforcement</small><b>Consent record only</b></span></div><div className="grant-actions"><button className="secondary" onClick={() => switchView('audit')}>View Access Log</button><button className="danger" disabled={busy === `revoke:${permission.id}`} onClick={() => void revokePermission(permission)}>{busy === `revoke:${permission.id}` ? 'Revoking…' : 'Revoke'}</button></div></div>)}</article><aside className="panel flow-panel"><p className="eyebrow">PERMISSION FLOW</p><h2>P0 Consent Lifecycle</h2>{['Recipient is selected', 'Patient chooses the scope', 'Server stores an expiry', 'Consent record is active', 'Permission expires or is revoked', 'Every change is logged'].map((step, index) => <div className="flow-step" key={step}><span>{index + 1}</span><b>{step}</b></div>)}</aside></div></section>}
             {activeView === 'audit' && <section className="audit-view">{failedAuditEvent && <div className="risk-banner"><span className="alert-icon">!</span><div><strong>A failed request was recorded</strong><p>{actionLabels[failedAuditEvent.action] ?? failedAuditEvent.action} · {formatDateTime(failedAuditEvent.createdAt)}. The event did not complete successfully.</p></div><button onClick={() => switchView('security')}>Review Account Security</button></div>}<div className="toolbar audit-toolbar"><div className="filter-tabs">{(['All Activity', 'Views', 'Changes', 'Failed'] as const).map((item) => <button key={item} className={auditFilter === item ? 'selected' : ''} onClick={() => setAuditFilter(item)}>{item}</button>)}</div><button className="secondary" type="button" disabled title="Audit export is outside the P0 course-demo scope">Export — Not Implemented</button></div><article className="panel audit-list"><div className="audit-head"><span>Actor</span><span>Action and Resource</span><span>Time and Context</span><span>Result</span></div>{filteredAudit.map((row) => <div className={row.risk ? 'audit-row risky' : 'audit-row'} key={row.id}><span><i className="person-dot">{row.initials}</i><b>{row.person}</b></span><span><b>{row.action}</b><small>{row.target}</small></span><span><b>{row.time}</b><small>{row.place}</small></span><span><em>{row.result}</em></span></div>)}{filteredAudit.length === 0 && <div className="empty-state"><strong>No matching audit events</strong><p>Actions performed through the local APIs will appear here.</p></div>}</article></section>}
             {activeView === 'security' && <section className="security-view"><div className="security-score panel"><div className="score-ring">P0</div><div><p className="eyebrow">IMPLEMENTED SECURITY BASELINE</p><h2>Authenticated Local Demo Session</h2><p>The server verifies a hashed password, issues a signed HttpOnly session cookie, limits repeated failed sign-ins, validates API input, and writes audit events.</p></div><button className="secondary" type="button" onClick={() => void checkSession()}>Recheck Session</button></div><div className="security-grid"><article className="panel"><p className="eyebrow">IMPLEMENTED NOW</p><h2>Server-Enforced Controls</h2>{[['Password verification', 'Enabled', 'Scrypt hash comparison on the server'], ['Signed session', 'Enabled', 'HttpOnly, SameSite=Lax cookie'], ['Login rate limit', 'Enabled', 'Repeated failed attempts are temporarily blocked']].map(([name, state, description], index) => <div className="setting-row" key={name}><span className="setting-icon">{index + 1}</span><span><b>{name}</b><small>{description}</small></span><button className="on" type="button" disabled>{state}</button></div>)}</article><article className="panel"><p className="eyebrow">NOT IN P0</p><h2>Future Integrations</h2>{[['Multi-factor authentication', 'Requires SMS or authenticator provider'], ['Trusted-device management', 'Requires device/session inventory'], ['Biometric sign-in', 'Requires a platform authenticator flow']].map(([name, description], index) => <div className="device-row" key={name}><span className="device-icon">{index + 1}</span><span><b>{name}</b><small>{description}</small></span><em>Not implemented</em></div>)}<button className="danger full" type="button" disabled>Sign Out Other Devices — Not Implemented</button></article></div><article className="panel security-events"><div className="panel-title"><div><p className="eyebrow">CURRENT SESSION</p><h2>Session Information</h2></div><button className="text-button" onClick={() => switchView('audit')}>View Full Log</button></div><div className="event-row"><span>✓</span><div><strong>Signed in as {user?.email}</strong><small>{sessionExpiresAt ? `Session expires ${formatDateTime(sessionExpiresAt)}` : 'Expiry unavailable'}</small></div><b>Active</b></div><button className="danger full" type="button" disabled={busy === 'logout'} onClick={() => void handleLogout()}>{busy === 'logout' ? 'Signing Out…' : 'Sign Out This Session'}</button></article></section>}
