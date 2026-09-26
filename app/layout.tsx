@@ -3,11 +3,11 @@ import './globals.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL('http://localhost:3000'),
-  title: 'Personal Health Service System — Course Demo',
-  description: 'A local full-stack course demo for fictional personal health records, measurements, permission-based sharing, and access auditing.',
+  title: 'Personal Health Service System',
+  description: 'Manage personal health records, track measurements, control information sharing, and review account activity in one place.',
   openGraph: {
-    title: 'Personal Health Service System — Course Demo',
-    description: 'A local full-stack course demo for fictional personal health records, measurements, permission-based sharing, and access auditing.',
+    title: 'Personal Health Service System',
+    description: 'Manage personal health records, track measurements, control information sharing, and review account activity in one place.',
     type: 'website',
     images: [{
       url: '/og.png',
@@ -18,8 +18,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Personal Health Service System — Course Demo',
-    description: 'A local full-stack course demo for fictional personal health records, measurements, permission-based sharing, and access auditing.',
+    title: 'Personal Health Service System',
+    description: 'Manage personal health records, track measurements, control information sharing, and review account activity in one place.',
     images: ['/og.png'],
   },
 };
