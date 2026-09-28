@@ -5,20 +5,7 @@ import type { Measurement } from '@/lib/client/api';
 import type { TrendKey } from './types';
 import { formatDate } from './utils';
 
-type ChartScale = {
-  minimum: number;
-  maximum: number;
-  step: number;
-  referenceMinimum: number;
-  referenceMaximum: number;
-};
-
-const chartScales: Record<TrendKey, ChartScale> = {
-  systolic: { minimum: 90, maximum: 140, step: 10, referenceMinimum: 90, referenceMaximum: 129 },
-  diastolic: { minimum: 60, maximum: 100, step: 10, referenceMinimum: 60, referenceMaximum: 84 },
-  glucose: { minimum: 3.5, maximum: 7, step: 0.5, referenceMinimum: 3.9, referenceMaximum: 6.1 },
-  heart: { minimum: 50, maximum: 110, step: 10, referenceMinimum: 60, referenceMaximum: 100 },
-};
+import { chartScales } from './trend-ranges';
 
 function chartNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);

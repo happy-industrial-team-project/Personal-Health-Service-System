@@ -1,3 +1,4 @@
+import { normalizeGlucose } from './trend-ranges';
 import type { HealthRecord, Measurement, MeasurementMetric, Permission, RecordType } from '@/lib/client/api';
 import type { TrendKey, View } from './types';
 
@@ -91,7 +92,8 @@ export function initials(name: string): string {
 }
 
 export function latestMeasurement(measurements: Measurement[], metric: MeasurementMetric): Measurement | undefined {
-  return measurements.find((measurement) => measurement.metric === metric);
+  const measurement = measurements.find((measurement) => measurement.metric === metric);
+  return measurement ? normalizeGlucose(measurement) : undefined;
 }
 
 export function valuesForTrend(measurements: Measurement[], trend: TrendKey): Measurement[] {
@@ -102,7 +104,7 @@ export function valuesForTrend(measurements: Measurement[], trend: TrendKey): Me
       : trend === 'glucose'
         ? 'blood_glucose'
         : 'heart_rate';
-  return measurements.filter((measurement) => measurement.metric === metric);
+  return measurements.filter((measurement) => measurement.metric === metric).map(normalizeGlucose);
 }
 
 export function recordStatus(record: HealthRecord): string {

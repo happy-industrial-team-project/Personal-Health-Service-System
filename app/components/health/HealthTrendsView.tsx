@@ -20,7 +20,7 @@ export function HealthTrendsView({ trend, trendData, measurements, rows, onTrend
       </div>
       <div className="trend-detail-grid">
         <article className="panel trend-large">
-          <div className="panel-title"><div><p className="eyebrow">ALL SAVED READINGS</p><h2>{trendData[trend].name} Trend</h2></div><span className="status-label">{measurements.length} DATA POINTS</span></div>
+          <div className="panel-title"><div><p className="eyebrow">LATEST 7 READINGS</p><h2>{trendData[trend].name} Trend</h2></div><span className="status-label">{Math.min(measurements.length, 7)} OF {measurements.length} READINGS</span></div>
           <div className="trend-summary"><strong>{trendData[trend].value}</strong><span>{trendData[trend].unit}<b>{trendData[trend].state}</b></span></div>
           <HealthTrendChart trend={trend} measurements={measurements} label={`${trendData[trend].name} line chart in ${trendData[trend].unit}`} />
         </article>

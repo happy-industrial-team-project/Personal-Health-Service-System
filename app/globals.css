@@ -245,3 +245,6 @@ input::placeholder,textarea::placeholder { color:var(--muted); opacity:1; }
 .record-changes dd, .record-snapshot dd { margin: 8px 0 0; line-height: 1.6; }
 .record-changes dd span { color: var(--muted); font-size: 12px; font-weight: 600; }
 .record-changes p { margin: 4px 0 12px; }
+
+.blood-pressure-charts { display:grid; gap:20px; min-width:0; }
+.metric-head b.neutral { color:var(--muted); background:#eef0ee; }
