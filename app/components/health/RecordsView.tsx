@@ -26,8 +26,8 @@ export function RecordsView({ records, error, loading, filter, onFilterChange, d
         <button className="primary" onClick={onAddRecord}>＋ Add Record</button>
       </div>
       <div className="record-date-filters" role="group" aria-label="Search records by date range">
-        <label>Start Date<input type="date" value={dateFrom} onChange={(event) => onDateFromChange(event.target.value)} /></label>
-        <label>End Date<input type="date" value={dateTo} onChange={(event) => onDateToChange(event.target.value)} /></label>
+        <label>Start Date<input type="date" className={dateFrom ? undefined : 'empty-date'} value={dateFrom} onClick={(event) => { if (!dateFrom) event.currentTarget.showPicker?.(); }} onKeyDown={(event) => { if (!dateFrom && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.currentTarget.showPicker?.(); } }} onChange={(event) => onDateFromChange(event.target.value)} /></label>
+        <label>End Date<input type="date" className={dateTo ? undefined : 'empty-date'} value={dateTo} onClick={(event) => { if (!dateTo) event.currentTarget.showPicker?.(); }} onKeyDown={(event) => { if (!dateTo && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.currentTarget.showPicker?.(); } }} onChange={(event) => onDateToChange(event.target.value)} /></label>
         <button className="secondary" type="button" disabled={!dateFrom && !dateTo} onClick={onClearDates}>Clear Dates</button>
       </div>
       {error && <p role="alert" style={{ color: 'var(--red)' }}>{error}</p>}
