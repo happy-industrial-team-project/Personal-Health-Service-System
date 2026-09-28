@@ -13,6 +13,9 @@ withTransaction((database) => {
   }
   const profile = { ...fields, version: 1, updatedAt: new Date().toISOString() };
   database.prepare('INSERT INTO health_profiles (owner_id, profile_json, version, updated_at) VALUES (?, ?, ?, ?)').run(user.id, JSON.stringify(profile), profile.version, profile.updatedAt);
+  database.prepare(`INSERT INTO health_profile_versions
+    (owner_id, version, snapshot_json, changed_at, actor_user_id, actor_name, reason, baseline)
+    VALUES (?, ?, ?, ?, NULL, NULL, ?, 0)`).run(user.id, profile.version, JSON.stringify(profile), profile.updatedAt, 'Fictional demo profile imported');
   appendAudit(database, { subjectUserId: user.id, actorUserId: null, action: 'profile.update', resourceType: 'health_profile', resourceId: user.id, outcome: 'success', metadata: { source: 'fictional_demo_seed', fromVersion: 0, toVersion: 1 } });
   console.log('Saved fictional personal health profile for Robert Lee.');
 });

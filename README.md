@@ -66,6 +66,14 @@ and measurement charts. Each account has its own persisted profile; saving and
 auditing are atomic, and stale edits are rejected. Schema version 5 adds this
 table automatically without changing existing health records.
 
+After changing a saved profile, enter a reason before saving. **View Version
+History** shows each complete saved profile, the time and person responsible,
+the reason, and the before/after values for changed fields. Saving unchanged
+content does not create a version. Schema version 6 preserves the current
+profile of an existing database as a baseline; edits made before this upgrade
+cannot be reconstructed. Profile updates, history snapshots, and audit events
+are committed together.
+
 The version-controlled fictional profile in `data/demo-profile.json` is added
 automatically to Robert Lee's demo account when a new database is initialized
 from `data/seed.json`. For a database created before this behavior was added,

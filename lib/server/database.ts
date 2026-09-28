@@ -8,7 +8,7 @@ const DEFAULT_DATABASE_FILE = path.join('data', 'phss.sqlite');
 const DEFAULT_LEGACY_FILE = path.join('data', 'store.json');
 const SEED_FILE = path.join(process.cwd(), 'data', 'seed.json');
 const DEMO_PROFILE_FILE = path.join(process.cwd(), 'data', 'demo-profile.json');
-const LATEST_SCHEMA_VERSION = 5;
+const LATEST_SCHEMA_VERSION = 6;
 const CONNECTION_CONFIG_VERSION = 1;
 
 type DatabaseState = {
@@ -282,6 +282,28 @@ function applyMigrations(database: DatabaseSync): void {
         VALUES (5, 'personal_health_profiles', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
       `);
     }
+    if (currentVersion < 6) {
+      database.exec(`
+        CREATE TABLE health_profile_versions (
+          owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          version INTEGER NOT NULL CHECK (version > 0),
+          snapshot_json TEXT NOT NULL CHECK (json_valid(snapshot_json)),
+          changed_at TEXT NOT NULL,
+          actor_user_id TEXT REFERENCES users(id),
+          actor_name TEXT,
+          reason TEXT NOT NULL,
+          baseline INTEGER NOT NULL DEFAULT 0 CHECK (baseline IN (0, 1)),
+          PRIMARY KEY (owner_id, version)
+        ) STRICT;
+        INSERT INTO health_profile_versions
+          (owner_id, version, snapshot_json, changed_at, actor_user_id, actor_name, reason, baseline)
+        SELECT owner_id, version, profile_json, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), NULL, NULL,
+          'Current profile preserved when version history was enabled. Earlier edits are unavailable.', 1
+        FROM health_profiles;
+        INSERT INTO schema_migrations (version, name, applied_at)
+        VALUES (6, 'health_profile_version_history', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+      `);
+    }
     database.exec('COMMIT');
   } catch (error) {
     rollbackBestEffort(database);
@@ -450,6 +472,11 @@ function bootstrapIfNeeded(database: DatabaseSync): void {
           INSERT INTO health_profiles (owner_id, profile_json, version, updated_at)
           VALUES (?, ?, ?, ?)
         `).run(demoUser.id, JSON.stringify(profile), profile.version, profile.updatedAt);
+        database.prepare(`
+          INSERT INTO health_profile_versions
+            (owner_id, version, snapshot_json, changed_at, actor_user_id, actor_name, reason, baseline)
+          VALUES (?, ?, ?, ?, NULL, NULL, ?, 0)
+        `).run(demoUser.id, profile.version, JSON.stringify(profile), profile.updatedAt, 'Fictional demo profile imported');
         insertAudit.run(
           'audit_seed_demo_profile', demoUser.id, null, 'profile.update',
           'health_profile', demoUser.id, 'success', profile.updatedAt,

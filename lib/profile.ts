@@ -14,3 +14,14 @@ export type HealthProfile = {
   version: number;
   updatedAt: string | null;
 };
+
+export type HealthProfileFields = Omit<HealthProfile, 'version' | 'updatedAt'>;
+
+export type HealthProfileVersion = {
+  version: number;
+  profile: HealthProfile;
+  changedAt: string;
+  changedBy: string | null;
+  reason: string;
+  baseline: boolean;
+};

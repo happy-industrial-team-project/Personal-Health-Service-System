@@ -21,14 +21,18 @@ test('profile validation, persistence, isolation, conflicts and atomic audit', a
   const initial = (await (await GET(req())).json()).data.profile;
   assert.equal(initial.version, 1);
   assert.equal(initial.name, user.name);
+  const seededHistory = (await (await GET(req())).json()).data.versions;
+  assert.equal(seededHistory.length, 1);
+  assert.deepEqual(seededHistory[0].profile, initial);
+  assert.equal(seededHistory[0].reason, 'Fictional demo profile imported');
   const demoProfile = JSON.parse(readFileSync('data/demo-profile.json', 'utf8'));
   for (const [key, value] of Object.entries(demoProfile)) assert.equal(initial[key], value);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM audit_events WHERE id = 'audit_seed_demo_profile'").get().n, 1);
   const { version, updatedAt, ...fields } = initial;
   void updatedAt;
-  const body = { ...fields, name: '测试用户', birthDate: '1998-02-28', heightCm: 175.5, weightKg: 65, gender: 'male', bloodType: 'AB', medicalHistory: '既往病史', familyHistory: '家族病史', allergies: '过敏史', medications: '当前用药', expectedVersion: version };
+  const body = { ...fields, name: '测试用户', birthDate: '1998-02-28', heightCm: 175.5, weightKg: 65, gender: 'male', bloodType: 'AB', medicalHistory: '既往病史', familyHistory: '家族病史', allergies: '过敏史', medications: '当前用药', expectedVersion: version, reason: 'Corrected personal details' };
   assert.equal((await PUT(req(body, ''))).status, 401);
-  for (const patch of [{ name: '' }, { birthDate: '1998-02-30' }, { birthDate: '2999-01-01' }, { heightCm: -1 }, { weightKg: 0 }, { gender: 'invalid' }, { bloodType: 'invalid' }, { ownerId: 'other' }, { expectedVersion: 0.5 }]) {
+  for (const patch of [{ name: '' }, { birthDate: '1998-02-30' }, { birthDate: '2999-01-01' }, { heightCm: -1 }, { weightKg: 0 }, { gender: 'invalid' }, { bloodType: 'invalid' }, { ownerId: 'other' }, { expectedVersion: 0.5 }, { reason: '' }]) {
     assert.equal((await PUT(req({ ...body, ...patch }))).status, 400);
   }
   assert.equal((await PUT(req(body))).status, 200);
@@ -36,13 +40,36 @@ test('profile validation, persistence, isolation, conflicts and atomic audit', a
   for (const key of Object.keys(fields)) assert.equal(saved[key], body[key]);
   assert.equal(saved.version, 2);
   assert.equal(db.prepare('SELECT name FROM users WHERE id = ?').get(user.id).name, body.name);
+  const history = (await (await GET(req())).json()).data.versions;
+  assert.equal(history.length, 2);
+  assert.deepEqual(history[0].profile, saved);
+  assert.deepEqual(history[1].profile, initial);
+  assert.equal(history[0].reason, body.reason);
+  assert.equal(history[0].changedBy, user.name);
+  assert.equal(history[0].baseline, false);
+  const unchanged = await (await PUT(req({ ...body, expectedVersion: 2 }))).json();
+  assert.equal(unchanged.data.changed, false);
+  assert.equal(unchanged.data.versions.length, 2);
   assert.equal((await PUT(req(body))).status, 409);
   db.prepare(`INSERT INTO users SELECT 'other', 'other@health.local', 'Other', role, password_algorithm, password_salt, password_hash, password_key_length, created_at FROM users WHERE id = ?`).run(user.id);
   const otherToken = (await createAuthenticatedSession({ ...user, id: 'other', name: 'Other' }, new Request('http://localhost/test'))).token;
   const other = (await (await GET(req(undefined, otherToken))).json()).data.profile;
   assert.equal(other.version, 0); assert.equal(other.allergies, '');
-  db.exec("CREATE TRIGGER fail_profile_audit BEFORE INSERT ON audit_events WHEN NEW.action = 'profile.update' BEGIN SELECT RAISE(ABORT, 'test audit failure'); END;");
+  assert.equal((await (await GET(req(undefined, otherToken))).json()).data.versions.length, 0);
+  const otherSave = await PUT(req({ ...fields, name: 'Other', expectedVersion: 0 }, otherToken));
+  assert.equal(otherSave.status, 200);
+  const otherHistory = (await (await GET(req(undefined, otherToken))).json()).data.versions;
+  assert.equal(otherHistory.length, 1);
+  assert.equal(otherHistory[0].reason, 'Initial saved profile');
+  assert.equal((await (await GET(req())).json()).data.versions.length, 2);
+  db.exec("CREATE TRIGGER fail_profile_history BEFORE INSERT ON health_profile_versions BEGIN SELECT RAISE(ABORT, 'test history failure'); END;");
   const oldError = console.error; console.error = () => {};
+  try { assert.equal((await PUT(req({ ...body, expectedVersion: 2, name: 'Must roll back history' }))).status, 500); }
+  finally { console.error = oldError; db.exec('DROP TRIGGER fail_profile_history'); }
+  assert.equal(db.prepare('SELECT name FROM users WHERE id = ?').get(user.id).name, body.name);
+  assert.deepEqual((await (await GET(req())).json()).data.profile, saved);
+  db.exec("CREATE TRIGGER fail_profile_audit BEFORE INSERT ON audit_events WHEN NEW.action = 'profile.update' BEGIN SELECT RAISE(ABORT, 'test audit failure'); END;");
+  console.error = () => {};
   try { assert.equal((await PUT(req({ ...body, expectedVersion: 2, name: 'Must roll back' }))).status, 500); }
   finally { console.error = oldError; db.exec('DROP TRIGGER fail_profile_audit'); }
   assert.equal(db.prepare('SELECT name FROM users WHERE id = ?').get(user.id).name, body.name);
@@ -50,5 +77,14 @@ test('profile validation, persistence, isolation, conflicts and atomic audit', a
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM audit_events WHERE action='profile.update' AND actor_user_id = ?").get(user.id).n, 1);
   db.close(); delete globalThis.__phssDatabaseState; db = getDatabase();
   assert.deepEqual((await (await GET(req())).json()).data.profile, saved);
+  assert.deepEqual((await (await GET(req())).json()).data.versions, history);
+  // Upgrade a version-5 database: the current profile becomes one honest baseline.
+  db.exec('DROP TABLE health_profile_versions; DELETE FROM schema_migrations WHERE version = 6;');
+  db.close(); delete globalThis.__phssDatabaseState; db = getDatabase();
+  const migrated = (await (await GET(req())).json()).data;
+  assert.deepEqual(migrated.profile, saved);
+  assert.equal(migrated.versions.length, 1);
+  assert.deepEqual(migrated.versions[0].profile, saved);
+  assert.equal(migrated.versions[0].baseline, true);
   assert.equal(db.prepare('PRAGMA integrity_check').get().integrity_check, 'ok');
 });

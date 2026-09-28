@@ -253,6 +253,10 @@ input::placeholder,textarea::placeholder { color:var(--muted); opacity:1; }
 .profile-panel .form-grid label,.profile-panel .full-field { font-size: 14px; }
 .profile-panel input,.profile-panel select,.profile-panel textarea { font-size: 16px; }
 .profile-panel textarea { min-height: 100px; }
+.profile-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:20px; }
+.profile-history { margin-top:30px; border-top:1px solid var(--line); padding-top:24px; }
+.profile-history h2 { margin:0 0 8px; }
+.profile-history .record-version { background:#fff; }
 .record-date-filters { display:flex; flex-wrap:wrap; align-items:end; gap:12px; margin:0 0 16px; }
 .record-date-filters label { display:grid; gap:6px; color:var(--muted); font-size:12px; font-weight:700; }
 .record-date-filters input { min-width:170px; border:1px solid var(--line); border-radius:9px; padding:9px 11px; color:var(--ink); background:#fff; font:inherit; font-size:16px; }
