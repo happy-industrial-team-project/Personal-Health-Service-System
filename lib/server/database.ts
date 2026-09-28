@@ -1,11 +1,13 @@
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import type { HealthProfile } from '../profile';
 import type { DatabaseBootstrapV1 } from './types';
 
 const DEFAULT_DATABASE_FILE = path.join('data', 'phss.sqlite');
 const DEFAULT_LEGACY_FILE = path.join('data', 'store.json');
 const SEED_FILE = path.join(process.cwd(), 'data', 'seed.json');
+const DEMO_PROFILE_FILE = path.join(process.cwd(), 'data', 'demo-profile.json');
 const LATEST_SCHEMA_VERSION = 5;
 const CONNECTION_CONFIG_VERSION = 1;
 
@@ -435,6 +437,25 @@ function bootstrapIfNeeded(database: DatabaseSync): void {
         event.createdAt,
         JSON.stringify(event.metadata),
       );
+    }
+
+    // A fresh checkout should show the same fictional profile as the demo data.
+    // Keep custom/legacy bootstrap files independent of the bundled demo profile.
+    if (path.resolve(source) === path.resolve(SEED_FILE)) {
+      const demoUser = data.users.find((user) => user.id === 'user_demo_robert' && user.email === 'demo@health.local');
+      if (demoUser) {
+        const fields = JSON.parse(readFileSync(DEMO_PROFILE_FILE, 'utf8')) as Omit<HealthProfile, 'version' | 'updatedAt'>;
+        const profile: HealthProfile = { ...fields, version: 1, updatedAt: new Date().toISOString() };
+        database.prepare(`
+          INSERT INTO health_profiles (owner_id, profile_json, version, updated_at)
+          VALUES (?, ?, ?, ?)
+        `).run(demoUser.id, JSON.stringify(profile), profile.version, profile.updatedAt);
+        insertAudit.run(
+          'audit_seed_demo_profile', demoUser.id, null, 'profile.update',
+          'health_profile', demoUser.id, 'success', profile.updatedAt,
+          JSON.stringify({ source: 'fictional_demo_seed', fromVersion: 0, toVersion: 1 }),
+        );
+      }
     }
 
     database.prepare(`

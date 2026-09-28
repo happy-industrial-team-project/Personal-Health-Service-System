@@ -66,9 +66,12 @@ and measurement charts. Each account has its own persisted profile; saving and
 auditing are atomic, and stale edits are rejected. Schema version 5 adds this
 table automatically without changing existing health records.
 
-The version-controlled fictional profile in `data/demo-profile.json` can be added
-to the demo account with `node tools/pnpm/bin/pnpm.mjs run seed:demo-profile`.
-This only fills an empty profile and keeps any profile you have already saved.
+The version-controlled fictional profile in `data/demo-profile.json` is added
+automatically to Robert Lee's demo account when a new database is initialized
+from `data/seed.json`. For a database created before this behavior was added,
+run `node tools/pnpm/bin/pnpm.mjs run seed:demo-profile` once. This only fills an
+empty profile and keeps any profile you have already saved. The live SQLite
+database stays local and is not uploaded to GitHub.
 
 Run `node tools/pnpm/bin/pnpm.mjs run test:profile` for profile integration tests.
 
