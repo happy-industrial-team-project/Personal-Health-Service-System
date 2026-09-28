@@ -23,7 +23,7 @@ export function RecordsView({ records, error, loading, filter, onFilterChange, o
       {error && <p role="alert" style={{ color: 'var(--red)' }}>{error}</p>}
       <div className="records-layout">
         <article className="panel records-list">
-          <div className="list-heading"><span>{loading ? 'Searching…' : `${records.length} records`}</span><small>Results come from the authenticated records API</small></div>
+          <div className="list-heading"><span>{loading ? 'Searching…' : `${records.length} records`}</span><small>Your saved health records</small></div>
           {records.map((record) => (
             <button className="record-row" key={record.id} onClick={() => onOpenRecord(record)}>
               <span className="record-icon large">{recordTypeIcons[record.type]}</span>

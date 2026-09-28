@@ -1,6 +1,6 @@
 import type { HealthRecord, Measurement, Permission } from '@/lib/client/api';
 import { HealthTrendChart } from './HealthTrendChart';
-import type { BloodPressureTrend, DashboardMetric, TrendKey } from './types';
+import type { DashboardMetric, TrendKey } from './types';
 import { formatDate, formatDateTime, initials, recordSourceLabels, recordTypeIcons, scopeLabel, valuesForTrend } from './utils';
 
 type DashboardProps = {
@@ -9,8 +9,6 @@ type DashboardProps = {
   measurements: Measurement[];
   records: HealthRecord[];
   activePermissions: Permission[];
-  pressureTrend: BloodPressureTrend;
-  onPressureTrendChange: (trend: BloodPressureTrend) => void;
   onSelectTrend: (trend: TrendKey) => void;
   onOpenMeasurement: () => void;
   onOpenRecords: () => void;
@@ -24,8 +22,6 @@ export function Dashboard({
   measurements,
   records,
   activePermissions,
-  pressureTrend,
-  onPressureTrendChange,
   onSelectTrend,
   onOpenMeasurement,
   onOpenRecords,
@@ -61,24 +57,23 @@ export function Dashboard({
       </section>
 
       <section className="dashboard-grid">
-        <article className="panel trend-panel">
-          <div className="panel-title">
-            <div><p className="eyebrow">RECENT SAVED READINGS</p><h2>Blood Pressure Trend</h2></div>
-            <button className="text-button" onClick={() => onSelectTrend(pressureTrend)}>View All</button>
-          </div>
-          <div className="pressure-chart-toolbar" role="group" aria-label="Choose blood pressure type">
-            <button type="button" className={pressureTrend === 'systolic' ? 'selected' : ''} aria-pressed={pressureTrend === 'systolic'} onClick={() => onPressureTrendChange('systolic')}><i className="dot dark" />Systolic Pressure</button>
-            <button type="button" className={pressureTrend === 'diastolic' ? 'selected' : ''} aria-pressed={pressureTrend === 'diastolic'} onClick={() => onPressureTrendChange('diastolic')}><i className="dot orange" />Diastolic Pressure</button>
-            <small>mmHg</small>
-          </div>
-          <HealthTrendChart compact trend={pressureTrend} measurements={valuesForTrend(measurements, pressureTrend)} label={`${pressureTrend === 'systolic' ? 'Systolic' : 'Diastolic'} blood pressure line chart in millimetres of mercury`} />
-        </article>
+        <div className="blood-pressure-charts">
+          {(['systolic', 'diastolic'] as const).map((pressureTrend) => (
+            <article className="panel trend-panel" key={pressureTrend}>
+              <div className="panel-title">
+                <div><p className="eyebrow">LATEST 7 READINGS / mmHg</p><h2>{pressureTrend === 'systolic' ? 'Systolic' : 'Diastolic'} Blood Pressure</h2></div>
+                <button className="text-button" onClick={() => onSelectTrend(pressureTrend)}>View Details</button>
+              </div>
+              <HealthTrendChart compact trend={pressureTrend} measurements={valuesForTrend(measurements, pressureTrend)} label={`${pressureTrend === 'systolic' ? 'Systolic' : 'Diastolic'} blood pressure line chart in mmHg`} />
+            </article>
+          ))}
+        </div>
 
         <aside className="panel alert-panel">
           <div className="panel-title"><div><p className="eyebrow">RULE-BASED SUMMARY</p><h2>Latest Reading Check</h2></div><span className="count">{flaggedMetrics.length}</span></div>
           {flaggedMetrics.length > 0 ? flaggedMetrics.slice(0, 1).map((item) => (
             <div className="alert-card" key={item.name}><span className="alert-icon">!</span><div><strong>{item.name} is outside the reference range</strong><p>{item.detail} Recheck under comparable conditions or consult a qualified professional if concerned.</p></div></div>
-          )) : <div className="empty-state"><strong>No reading is flagged</strong><p>Current readings are within the configured reference ranges.</p></div>}
+          )) : <div className="empty-state"><strong>No reading is flagged</strong><p>No saved reading is currently flagged. Missing readings have not been assessed.</p></div>}
           <div className="next-check"><span>Important limitation</span><strong>General health guidance</strong><small>Reference ranges provide general information and do not replace professional medical advice.</small></div>
         </aside>
       </section>

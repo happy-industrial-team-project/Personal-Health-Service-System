@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
+import { isOutsideReference } from './components/health/trend-ranges';
 import { AccessLogView } from './components/health/AccessLogView';
 import { Dashboard } from './components/health/Dashboard';
 import { HealthTrendsView } from './components/health/HealthTrendsView';
@@ -14,7 +15,7 @@ import { PermissionModal } from './components/health/modals/PermissionModal';
 import { RecordDetailModal } from './components/health/modals/RecordDetailModal';
 import { RecordModal } from './components/health/modals/RecordModal';
 import type {
-  AuditFilter, AuditRow, AuthState, BloodPressureTrend, DashboardMetric, LoadState,
+  AuditFilter, AuditRow, AuthState, DashboardMetric, LoadState,
   MeasurementForm, Modal, PermissionForm, PermissionScope, RecordForm, TrendKey,
   TrendRow, TrendSummary, View,
 } from './components/health/types';
@@ -60,7 +61,6 @@ export default function Home() {
   const [recordFilter, setRecordFilter] = useState<RecordType | 'all'>('all');
   const [selectedRecord, setSelectedRecord] = useState<HealthRecord | null>(null);
   const [trend, setTrend] = useState<TrendKey>('systolic');
-  const [dashboardPressureTrend, setDashboardPressureTrend] = useState<BloodPressureTrend>('systolic');
   const [auditFilter, setAuditFilter] = useState<AuditFilter>('All Activity');
   const [largeText, setLargeText] = useState(false);
   const [toast, setToast] = useState('');
@@ -234,15 +234,15 @@ export default function Home() {
     const diastolic = latestMeasurement(measurements, 'blood_pressure_diastolic');
     const glucose = latestMeasurement(measurements, 'blood_glucose');
     const heart = latestMeasurement(measurements, 'heart_rate');
-    const systolicNeedsReview = Boolean(systolic && systolic.value >= 130);
-    const diastolicNeedsReview = Boolean(diastolic && diastolic.value >= 85);
-    const glucoseNeedsReview = Boolean(glucose && glucose.value > 6.1);
-    const heartNeedsReview = Boolean(heart && (heart.value < 60 || heart.value > 100));
+    const systolicNeedsReview = Boolean(systolic && isOutsideReference('systolic', systolic.value));
+    const diastolicNeedsReview = Boolean(diastolic && isOutsideReference('diastolic', diastolic.value));
+    const glucoseNeedsReview = Boolean(glucose && isOutsideReference('glucose', glucose.value));
+    const heartNeedsReview = Boolean(heart && isOutsideReference('heart', heart.value));
     return {
-      systolic: { name: 'Systolic Pressure', value: systolic ? String(systolic.value) : '—', unit: 'mmHg', state: systolicNeedsReview ? 'Review reading' : 'Within reference range', tone: systolicNeedsReview ? 'orange' : 'green', updatedAt: systolic?.measuredAt ?? null, detail: systolic ? `Latest systolic pressure is ${systolic.value} mmHg.` : 'No systolic pressure reading has been saved yet.' },
-      diastolic: { name: 'Diastolic Pressure', value: diastolic ? String(diastolic.value) : '—', unit: 'mmHg', state: diastolicNeedsReview ? 'Review reading' : 'Within reference range', tone: diastolicNeedsReview ? 'orange' : 'green', updatedAt: diastolic?.measuredAt ?? null, detail: diastolic ? `Latest diastolic pressure is ${diastolic.value} mmHg.` : 'No diastolic pressure reading has been saved yet.' },
-      glucose: { name: 'Fasting Glucose', value: glucose ? String(glucose.value) : '—', unit: glucose?.unit ?? 'mmol/L', state: glucoseNeedsReview ? 'Review reading' : 'Within reference range', tone: glucoseNeedsReview ? 'orange' : 'green', updatedAt: glucose?.measuredAt ?? null, detail: glucose ? `Latest saved reading is ${glucose.value} ${glucose.unit}.` : 'No glucose reading has been saved yet.' },
-      heart: { name: 'Resting Heart Rate', value: heart ? String(heart.value) : '—', unit: heart?.unit ?? 'bpm', state: heartNeedsReview ? 'Review reading' : 'Within reference range', tone: heartNeedsReview ? 'orange' : 'green', updatedAt: heart?.measuredAt ?? null, detail: heart ? `Latest saved reading is ${heart.value} ${heart.unit}.` : 'No heart-rate reading has been saved yet.' },
+      systolic: { name: 'Systolic Pressure', value: systolic ? String(systolic.value) : '—', unit: 'mmHg', state: !systolic ? 'No readings yet' : systolicNeedsReview ? 'Review reading' : 'Within reference range', tone: !systolic ? 'neutral' : systolicNeedsReview ? 'orange' : 'green', updatedAt: systolic?.measuredAt ?? null, detail: systolic ? `Latest systolic pressure is ${systolic.value} mmHg.` : 'No systolic pressure reading has been saved yet.' },
+      diastolic: { name: 'Diastolic Pressure', value: diastolic ? String(diastolic.value) : '—', unit: 'mmHg', state: !diastolic ? 'No readings yet' : diastolicNeedsReview ? 'Review reading' : 'Within reference range', tone: !diastolic ? 'neutral' : diastolicNeedsReview ? 'orange' : 'green', updatedAt: diastolic?.measuredAt ?? null, detail: diastolic ? `Latest diastolic pressure is ${diastolic.value} mmHg.` : 'No diastolic pressure reading has been saved yet.' },
+      glucose: { name: 'Fasting Glucose', value: glucose ? String(glucose.value) : '—', unit: glucose?.unit ?? 'mmol/L', state: !glucose ? 'No readings yet' : glucoseNeedsReview ? 'Review reading' : 'Within reference range', tone: !glucose ? 'neutral' : glucoseNeedsReview ? 'orange' : 'green', updatedAt: glucose?.measuredAt ?? null, detail: glucose ? `Latest saved reading is ${glucose.value} ${glucose.unit}.` : 'No glucose reading has been saved yet.' },
+      heart: { name: 'Resting Heart Rate', value: heart ? String(heart.value) : '—', unit: heart?.unit ?? 'bpm', state: !heart ? 'No readings yet' : heartNeedsReview ? 'Review reading' : 'Within reference range', tone: !heart ? 'neutral' : heartNeedsReview ? 'orange' : 'green', updatedAt: heart?.measuredAt ?? null, detail: heart ? `Latest saved reading is ${heart.value} ${heart.unit}.` : 'No heart-rate reading has been saved yet.' },
     } satisfies Record<TrendKey, TrendSummary>;
   }, [measurements]);
 
@@ -250,9 +250,9 @@ export default function Home() {
   const bloodPressureNeedsReview = trendData.systolic.tone === 'orange' || trendData.diastolic.tone === 'orange';
   const dashboardTrendData: DashboardMetric[] = [
     {
-      key: 'pressure', trend: dashboardPressureTrend, name: 'Blood Pressure',
+      key: 'pressure', trend: 'systolic', name: 'Blood Pressure',
       value: hasBloodPressure ? `${trendData.systolic.value}/${trendData.diastolic.value}` : '—', unit: 'mmHg',
-      state: bloodPressureNeedsReview ? 'Review reading' : 'Within reference range', tone: bloodPressureNeedsReview ? 'orange' : 'green',
+      state: !hasBloodPressure ? 'Incomplete readings' : bloodPressureNeedsReview ? 'Review reading' : 'Within reference range', tone: !hasBloodPressure ? 'neutral' : bloodPressureNeedsReview ? 'orange' : 'green',
       updatedAt: trendData.systolic.updatedAt ?? trendData.diastolic.updatedAt,
       detail: hasBloodPressure ? `Latest saved reading is ${trendData.systolic.value}/${trendData.diastolic.value} mmHg.` : 'Add both systolic and diastolic readings to see a summary.',
     },
@@ -266,7 +266,7 @@ export default function Home() {
   const failedAuditEvent = auditEvents.find((event) => event.outcome === 'failure');
   const selectedTrendMeasurements = valuesForTrend(measurements, trend);
   const selectedTrendRows: TrendRow[] = selectedTrendMeasurements.slice(0, 7).map((measurement) => {
-    const review = trend === 'systolic' ? measurement.value >= 130 : trend === 'diastolic' ? measurement.value >= 85 : trend === 'glucose' ? measurement.value > 6.1 : measurement.value < 60 || measurement.value > 100;
+    const review = isOutsideReference(trend, measurement.value);
     return { id: measurement.id, time: measurement.measuredAt, result: `${measurement.value} ${measurement.unit}`, source: measurement.source, review };
   });
 
@@ -320,7 +320,7 @@ export default function Home() {
     try {
       const occurredAt = new Date(`${recordForm.date}T12:00:00`).toISOString();
       const result = await apiRequest<{ record: HealthRecord }>('/api/records', { method: 'POST', body: JSON.stringify({ type: recordForm.type, title: recordForm.title, description: recordForm.description, occurredAt, source: 'self', organization: null }) });
-      setQuery(''); setRecordFilter('all'); setRecords((current) => [result.record, ...current.filter((record) => record.id !== result.record.id)]); setModal(null); showToast('Health record saved to SQLite'); void refreshAudit();
+      setQuery(''); setRecordFilter('all'); setRecords((current) => [result.record, ...current.filter((record) => record.id !== result.record.id)]); setModal(null); showToast('Health record saved'); void refreshAudit();
     } catch (error) { setActionError(handleRequestError(error)); } finally { setBusy(''); }
   }
 
@@ -363,7 +363,7 @@ export default function Home() {
     const busyKey = `revoke:${permission.id}`; setBusy(busyKey); setDataError('');
     try {
       const result = await apiRequest<{ permission: Permission }>('/api/permissions', { method: 'PATCH', body: JSON.stringify({ id: permission.id, action: 'revoke' }) });
-      setPermissions((current) => current.map((item) => item.id === result.permission.id ? result.permission : item)); showToast(`${permission.granteeName}'s access was revoked`); void refreshAudit();
+      setPermissions((current) => current.map((item) => item.id === result.permission.id ? result.permission : item)); showToast(`Permission record for ${permission.granteeName} revoked`); void refreshAudit();
     } catch (error) { setDataError(handleRequestError(error)); } finally { setBusy(''); }
   }
 
@@ -408,7 +408,7 @@ export default function Home() {
           {dataState === 'error' && <section className="panel" role="alert"><h2>Health data could not be loaded</h2><p>{dataError}</p><button className="primary" type="button" onClick={() => void loadCoreData()}>Try Again</button></section>}
           {dataState === 'ready' && <>
             {activeView !== 'overview' && <header className="page-heading"><div><p className="eyebrow">PERSONAL HEALTH SERVICE</p><h1>{pageTitle[activeView][0]}</h1><p>{pageTitle[activeView][1]}</p></div><span className="status-label">PRIVATE HEALTH DATA</span></header>}
-            {activeView === 'overview' && <Dashboard userName={user?.name ?? ''} metrics={dashboardTrendData} measurements={measurements} records={records} activePermissions={activePermissions} pressureTrend={dashboardPressureTrend} onPressureTrendChange={setDashboardPressureTrend} onSelectTrend={selectTrend} onOpenMeasurement={() => openModal('measure')} onOpenRecords={() => switchView('records')} onOpenPermissions={() => switchView('permissions')} onOpenRecord={openRecord} />}
+            {activeView === 'overview' && <Dashboard userName={user?.name ?? ''} metrics={dashboardTrendData} measurements={measurements} records={records} activePermissions={activePermissions} onSelectTrend={selectTrend} onOpenMeasurement={() => openModal('measure')} onOpenRecords={() => switchView('records')} onOpenPermissions={() => switchView('permissions')} onOpenRecord={openRecord} />}
             {activeView === 'records' && <RecordsView records={records} error={recordsError} loading={recordsLoading} filter={recordFilter} onFilterChange={setRecordFilter} onAddRecord={() => openModal('record')} onOpenRecord={openRecord} />}
             {activeView === 'trends' && <HealthTrendsView trend={trend} trendData={trendData} measurements={selectedTrendMeasurements} rows={selectedTrendRows} onTrendChange={setTrend} onAddMeasurement={() => openModal('measure')} />}
             {activeView === 'permissions' && <PermissionsView activePermissions={activePermissions} expiredCount={expiredPermissions.length} revokedCount={revokedPermissions.length} error={dataError} busy={busy} onAddPermission={() => openModal('grant')} onViewAudit={() => switchView('audit')} onRevoke={(permission) => void revokePermission(permission)} />}

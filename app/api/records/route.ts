@@ -70,7 +70,9 @@ export async function POST(request: Request): Promise<Response> {
     const title = requiredString(body.title, 'title', { max: 120 });
     const description = optionalString(body.description, 'description', 2_000) ?? '';
     const occurredAt = isoDateTime(body.occurredAt, 'occurredAt');
-    const source = enumValue(body.source, 'source', recordSources);
+    enumValue(body.source, 'source', recordSources);
+    // Patient input cannot establish a trusted hospital or clinician source.
+    const source = 'self' as const;
     const organization = optionalString(body.organization, 'organization', 160);
     const now = new Date().toISOString();
 
