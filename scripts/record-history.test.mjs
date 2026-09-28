@@ -98,6 +98,14 @@ test('record editing, snapshots, ownership, conflicts, audit, migration and pers
   assert.equal((await GET(request(), { params: Promise.resolve({ id: 'missing' }) })).status, 404);
   const listed = (await (await listRecords(new Request('http://localhost/api/records', { headers: { cookie: `phss_session=${token}` } }))).json()).data.records;
   assert.equal(listed.find((record) => record.id === original.id).version, 2);
+  const searchRecords = async (parameters) => listRecords(new Request(`http://localhost/api/records?${new URLSearchParams(parameters)}`, { headers: { cookie: `phss_session=${token}` } }));
+  const sameDay = await searchRecords({ from: '2026-09-01T00:00:00.000Z', to: '2026-09-01T23:59:59.999Z', type: 'medication', q: 'Updated record' });
+  assert.ok((await sameDay.json()).data.records.some((record) => record.id === original.id));
+  const previousDay = await searchRecords({ to: '2026-08-31T23:59:59.999Z', q: 'Updated record' });
+  assert.equal((await previousDay.json()).data.records.length, 0);
+  const followingDay = await searchRecords({ from: '2026-09-02T00:00:00.000Z', q: 'Updated record' });
+  assert.equal((await followingDay.json()).data.records.length, 0);
+  assert.equal((await searchRecords({ from: '2026-09-02T00:00:00.000Z', to: '2026-09-01T23:59:59.999Z' })).status, 400);
 
   const voidBody = { action: 'void', expectedVersion: 2, reason: 'Duplicate record entered by mistake' };
   assert.equal((await voidRecord(request('POST', { ...voidBody, reason: ' ' }), context)).status, 400);

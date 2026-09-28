@@ -74,6 +74,10 @@ Run `node tools/pnpm/bin/pnpm.mjs run test:profile` for profile integration test
 
 ### Edit records and view version history
 
+On **Health Records**, choose a Start Date, an End Date, or both to search by
+record date. Both selected dates are included. Date filters work with the text
+search and record type filters; **Clear Dates** removes the date range.
+
 Open **Health Records**, select a record, and choose **Edit Record**. You can change
 its type, date, title, and details. A reason for the change is required. Saving
 preserves the previous content and creates a numbered version; the original data

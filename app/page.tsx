@@ -61,6 +61,8 @@ export default function Home() {
   const [modal, setModal] = useState<Modal>(null);
   const [query, setQuery] = useState('');
   const [recordFilter, setRecordFilter] = useState<RecordType | 'all'>('all');
+  const [recordDateFrom, setRecordDateFrom] = useState('');
+  const [recordDateTo, setRecordDateTo] = useState('');
   const [selectedRecord, setSelectedRecord] = useState<HealthRecord | null>(null);
   const [trend, setTrend] = useState<TrendKey>('systolic');
   const [auditFilter, setAuditFilter] = useState<AuditFilter>('All Activity');
@@ -195,9 +197,17 @@ export default function Home() {
     if (authState !== 'authenticated') return;
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
+      if (recordDateFrom && recordDateTo && recordDateFrom > recordDateTo) {
+        setRecords([]);
+        setRecordsLoading(false);
+        setRecordsError('Start date must be on or before end date.');
+        return;
+      }
       const parameters = new URLSearchParams();
       if (query.trim()) parameters.set('q', query.trim());
       if (recordFilter !== 'all') parameters.set('type', recordFilter);
+      if (recordDateFrom) parameters.set('from', new Date(`${recordDateFrom}T00:00:00`).toISOString());
+      if (recordDateTo) parameters.set('to', new Date(`${recordDateTo}T23:59:59.999`).toISOString());
       const suffix = parameters.size > 0 ? `?${parameters.toString()}` : '';
       setRecordsLoading(true);
       setRecordsError('');
@@ -210,7 +220,7 @@ export default function Home() {
         .finally(() => { if (!controller.signal.aborted) setRecordsLoading(false); });
     }, 250);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [authState, handleRequestError, query, recordFilter, recordsRevision]);
+  }, [authState, handleRequestError, query, recordFilter, recordDateFrom, recordDateTo, recordsRevision]);
 
   useEffect(() => {
     if (!mobileNavOpen) return;
@@ -363,7 +373,7 @@ export default function Home() {
     try {
       const occurredAt = new Date(`${recordForm.date}T12:00:00`).toISOString();
       const result = await apiRequest<{ record: HealthRecord }>('/api/records', { method: 'POST', body: JSON.stringify({ type: recordForm.type, title: recordForm.title, description: recordForm.description, occurredAt, source: 'self', organization: null }) });
-      setQuery(''); setRecordFilter('all'); setRecords((current) => [result.record, ...current.filter((record) => record.id !== result.record.id)]); setModal(null); showToast('Health record saved'); void refreshAudit();
+      setQuery(''); setRecordFilter('all'); setRecordDateFrom(''); setRecordDateTo(''); setRecords((current) => [result.record, ...current.filter((record) => record.id !== result.record.id)]); setModal(null); showToast('Health record saved'); void refreshAudit();
     } catch (error) { setActionError(handleRequestError(error)); } finally { setBusy(''); }
   }
 
@@ -453,7 +463,7 @@ export default function Home() {
             {activeView !== 'overview' && <header className="page-heading"><div><p className="eyebrow">PERSONAL HEALTH SERVICE</p><h1>{pageTitle[activeView][0]}</h1><p>{pageTitle[activeView][1]}</p></div><span className="status-label">PRIVATE HEALTH DATA</span></header>}
             {activeView === 'profile' && <ProfileView onError={handleRequestError} onSaved={(name) => { setUser((current) => current ? { ...current, name } : current); void refreshAudit(); }} />}
             {activeView === 'overview' && <Dashboard userName={user?.name ?? ''} metrics={dashboardTrendData} measurements={measurements} records={records} activePermissions={activePermissions} onSelectTrend={selectTrend} onOpenMeasurement={() => openModal('measure')} onOpenRecords={() => switchView('records')} onOpenPermissions={() => switchView('permissions')} onOpenRecord={openRecord} />}
-            {activeView === 'records' && <RecordsView records={records} error={recordsError} loading={recordsLoading} filter={recordFilter} onFilterChange={setRecordFilter} onAddRecord={() => openModal('record')} onOpenRecord={openRecord} />}
+            {activeView === 'records' && <RecordsView records={records} error={recordsError} loading={recordsLoading} filter={recordFilter} onFilterChange={setRecordFilter} dateFrom={recordDateFrom} dateTo={recordDateTo} onDateFromChange={setRecordDateFrom} onDateToChange={setRecordDateTo} onClearDates={() => { setRecordDateFrom(''); setRecordDateTo(''); }} onAddRecord={() => openModal('record')} onOpenRecord={openRecord} />}
             {activeView === 'trends' && <HealthTrendsView trend={trend} trendData={trendData} measurements={selectedTrendMeasurements} rows={selectedTrendRows} onTrendChange={setTrend} onAddMeasurement={() => openModal('measure')} />}
             {activeView === 'permissions' && <PermissionsView activePermissions={activePermissions} expiredCount={expiredPermissions.length} revokedCount={revokedPermissions.length} error={dataError} busy={busy} onAddPermission={() => openModal('grant')} onViewAudit={() => switchView('audit')} onRevoke={(permission) => void revokePermission(permission)} />}
             {activeView === 'audit' && <AccessLogView failedEvent={failedAuditEvent} filter={auditFilter} rows={filteredAudit} onFilterChange={setAuditFilter} onReviewSecurity={() => switchView('security')} />}
