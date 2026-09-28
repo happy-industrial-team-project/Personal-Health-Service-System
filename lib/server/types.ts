@@ -37,6 +37,9 @@ export const recordSources = ['self', 'hospital', 'clinician', 'device', 'other'
 export type RecordSource = (typeof recordSources)[number];
 
 export type HealthRecord = {
+  voidedAt: string | null;
+  voidReason: string | null;
+  version: number;
   id: string;
   ownerId: string;
   type: RecordType;
@@ -47,6 +50,15 @@ export type HealthRecord = {
   organization: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type HealthRecordVersion = {
+  version: number;
+  record: HealthRecord;
+  changedAt: string;
+  changedBy: string | null;
+  reason: string;
+  baseline: boolean;
 };
 
 export const measurementMetrics = [

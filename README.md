@@ -55,6 +55,31 @@ The repository includes a portable pnpm copy under `tools/pnpm`, so a global pnp
 
 ## Local data, migration, and reset
 
+### Edit records and view version history
+
+Open **Health Records**, select a record, and choose **Edit Record**. You can change
+its type, date, title, and details. A reason for the change is required. Saving
+preserves the previous content and creates a numbered version; the original data
+source and creation time remain unchanged. Choose **Version History** to see
+timestamps, editors, reasons, before/after changes, and each complete snapshot.
+
+Existing databases upgrade automatically to schema version 4. Existing records
+become the baseline snapshot; changes made before history was enabled cannot be
+reconstructed. New records start at version 1. Saving unchanged content does not
+create an additional version. If another page has updated the record, saving is
+rejected: keep a copy of your edits, cancel, review the refreshed record, then edit
+again. Updates, snapshots, and audit events are saved in one transaction.
+
+For an erroneous record, choose **Void Record**, enter a reason, and confirm.
+The record stays in the list with a **Voided** label, its content and all prior
+versions remain available, and a new version plus a `record.void` audit event are
+saved together. Voided records cannot be edited or voided again. No record is
+deleted by this action. Health measurement charts use separate measurement data;
+voiding a text record does not change those measurements.
+
+Run `node tools/pnpm/bin/pnpm.mjs run test:records` to check migration, persistence,
+authorization, validation, version conflicts, and rollback using a temporary database.
+
 The live local database is `data/phss.sqlite` by default. The server automatically applies its SQLite schema migrations whenever it opens the database.
 
 When a new or empty SQLite database is initialized, the server imports bootstrap data in this order:

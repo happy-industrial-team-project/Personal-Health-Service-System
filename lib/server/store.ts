@@ -32,6 +32,9 @@ type SessionRow = {
 };
 
 type HealthRecordRow = {
+  voided_at: string | null;
+  void_reason: string | null;
+  version: number;
   id: string;
   owner_id: string;
   type: HealthRecord['type'];
@@ -96,6 +99,9 @@ function toSession(row: SessionRow): Session {
 
 function toHealthRecord(row: HealthRecordRow): HealthRecord {
   return {
+    voidedAt: row.voided_at,
+    voidReason: row.void_reason,
+    version: row.version,
     id: row.id,
     ownerId: row.owner_id,
     type: row.type,
@@ -291,7 +297,7 @@ export function listHealthRecords(database: DatabaseSync, filters: HealthRecordQ
   const rows = database.prepare(`
     SELECT
       id, owner_id, type, title, description, occurred_at, source,
-      organization, created_at, updated_at
+      organization, created_at, updated_at, version, voided_at, void_reason
     FROM health_records
     WHERE ${conditions.join(' AND ')}
     ORDER BY occurred_at DESC, created_at DESC, id ASC

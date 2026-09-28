@@ -35,6 +35,7 @@ if (!existsSync(databasePath)) {
       'users',
       'sessions',
       'health_records',
+      'health_record_versions',
       'measurements',
       'permissions',
       'permission_scopes',
@@ -54,7 +55,7 @@ if (!existsSync(databasePath)) {
     const schemaVersion = database
       .prepare('SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations')
       .get().version;
-    if (schemaVersion !== 2) {
+    if (schemaVersion !== 4) {
       throw new Error(`Unsupported SQLite schema version: ${String(schemaVersion)}`);
     }
     console.log(`Database: ${databasePath}`);

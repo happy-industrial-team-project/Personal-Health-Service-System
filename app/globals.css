@@ -229,3 +229,19 @@ input::placeholder,textarea::placeholder { color:var(--muted); opacity:1; }
   }
   .metric:hover { transform:none; }
 }
+/* Health record editing and revision history */
+.modal .record-fields { display: block; border: 0; margin: 0; padding: 0; min-width: 0; }
+.modal-actions { flex-wrap: wrap; }
+.record-error { color: var(--red); padding-right: 32px; }
+.record-history { display: grid; gap: 16px; margin-top: 20px; }
+.record-version { border: 1px solid var(--line); border-radius: 12px; padding: 18px; overflow-wrap: anywhere; }
+.record-version h3 { margin: 0 0 8px; }
+.record-version-meta { color: var(--muted); font-size: 13px; }
+.record-version-reason, .record-snapshot dd, .record-changes p, .detail-copy p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.record-version summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+.record-changes, .record-snapshot { margin: 12px 0; }
+.record-changes > div, .record-snapshot > div { padding: 10px 0; border-top: 1px solid var(--line); }
+.record-changes dt, .record-snapshot dt { font-weight: 600; }
+.record-changes dd, .record-snapshot dd { margin: 8px 0 0; line-height: 1.6; }
+.record-changes dd span { color: var(--muted); font-size: 12px; font-weight: 600; }
+.record-changes p { margin: 4px 0 12px; }

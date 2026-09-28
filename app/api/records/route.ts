@@ -75,6 +75,9 @@ export async function POST(request: Request): Promise<Response> {
     const now = new Date().toISOString();
 
     const record: HealthRecord = {
+      voidedAt: null,
+      voidReason: null,
+      version: 1,
       id: `record_${randomUUID()}`,
       ownerId: session.user.id,
       type,

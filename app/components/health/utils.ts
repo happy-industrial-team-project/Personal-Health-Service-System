@@ -50,6 +50,9 @@ export const actionLabels: Record<string, string> = {
   'auth.logout': 'Signed out',
   'record.list': 'Viewed health records',
   'record.create': 'Added a health record',
+  'record.update': 'Updated a health record',
+  'record.void': 'Voided a health record',
+  'record.history.list': 'Viewed record and version history',
   'measurement.list': 'Viewed measurements',
   'measurement.create': 'Added a measurement',
   'permission.list': 'Viewed permissions',
@@ -103,6 +106,7 @@ export function valuesForTrend(measurements: Measurement[], trend: TrendKey): Me
 }
 
 export function recordStatus(record: HealthRecord): string {
+  if (record.voidedAt) return 'Voided';
   return record.source === 'hospital' ? 'Source retained' : 'Saved';
 }
 

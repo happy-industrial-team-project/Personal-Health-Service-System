@@ -6,7 +6,7 @@ import type { DatabaseBootstrapV1 } from './types';
 const DEFAULT_DATABASE_FILE = path.join('data', 'phss.sqlite');
 const DEFAULT_LEGACY_FILE = path.join('data', 'store.json');
 const SEED_FILE = path.join(process.cwd(), 'data', 'seed.json');
-const LATEST_SCHEMA_VERSION = 2;
+const LATEST_SCHEMA_VERSION = 4;
 const CONNECTION_CONFIG_VERSION = 1;
 
 type DatabaseState = {
@@ -218,6 +218,56 @@ function applyMigrations(database: DatabaseSync): void {
       `);
     }
 
+    if (currentVersion < 3) {
+      database.exec(`
+        ALTER TABLE health_records ADD COLUMN version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0);
+        CREATE TABLE health_record_versions (
+          record_id TEXT NOT NULL REFERENCES health_records(id) ON DELETE CASCADE,
+          version INTEGER NOT NULL CHECK (version > 0),
+          snapshot_json TEXT NOT NULL CHECK (json_valid(snapshot_json)),
+          changed_at TEXT NOT NULL,
+          actor_user_id TEXT REFERENCES users(id),
+          reason TEXT NOT NULL,
+          baseline INTEGER NOT NULL DEFAULT 0 CHECK (baseline IN (0, 1)),
+          PRIMARY KEY (record_id, version)
+        ) STRICT;
+
+        INSERT INTO health_record_versions
+          (record_id, version, snapshot_json, changed_at, actor_user_id, reason, baseline)
+        SELECT id, version, json_object(
+          'id', id, 'ownerId', owner_id, 'type', type, 'title', title,
+          'description', description, 'occurredAt', occurred_at, 'source', source,
+          'organization', organization, 'createdAt', created_at, 'updatedAt', updated_at,
+          'version', version
+        ), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), NULL,
+          'Existing record preserved when version history was enabled. Earlier changes are unavailable.', 1
+        FROM health_records;
+
+        CREATE TRIGGER health_records_initial_version AFTER INSERT ON health_records
+        BEGIN
+          INSERT INTO health_record_versions
+            (record_id, version, snapshot_json, changed_at, actor_user_id, reason, baseline)
+          VALUES (NEW.id, NEW.version, json_object(
+            'id', NEW.id, 'ownerId', NEW.owner_id, 'type', NEW.type, 'title', NEW.title,
+            'description', NEW.description, 'occurredAt', NEW.occurred_at, 'source', NEW.source,
+            'organization', NEW.organization, 'createdAt', NEW.created_at, 'updatedAt', NEW.updated_at,
+            'version', NEW.version
+          ), NEW.created_at, NULL, 'Initial saved record', 0);
+        END;
+
+        INSERT INTO schema_migrations (version, name, applied_at)
+        VALUES (3, 'health_record_version_history', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+      `);
+    }
+
+    if (currentVersion < 4) {
+      database.exec(`
+        ALTER TABLE health_records ADD COLUMN voided_at TEXT;
+        ALTER TABLE health_records ADD COLUMN void_reason TEXT;
+        INSERT INTO schema_migrations (version, name, applied_at)
+        VALUES (4, 'health_record_voiding', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+      `);
+    }
     database.exec('COMMIT');
   } catch (error) {
     rollbackBestEffort(database);

@@ -11,7 +11,7 @@ import { SecurityView } from './components/health/SecurityView';
 import { MeasurementModal } from './components/health/modals/MeasurementModal';
 import { ModalShell } from './components/health/modals/ModalShell';
 import { PermissionModal } from './components/health/modals/PermissionModal';
-import { RecordDetailModal } from './components/health/modals/RecordDetailModal';
+import { RecordEditor } from './components/health/modals/RecordEditor';
 import { RecordModal } from './components/health/modals/RecordModal';
 import type {
   AuditFilter, AuditRow, AuthState, BloodPressureTrend, DashboardMetric, LoadState,
@@ -50,6 +50,7 @@ export default function Home() {
   const [dataError, setDataError] = useState('');
   const [recordsError, setRecordsError] = useState('');
   const [recordsLoading, setRecordsLoading] = useState(false);
+  const [recordsRevision, setRecordsRevision] = useState(0);
   const [records, setRecords] = useState<HealthRecord[]>([]);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -101,6 +102,7 @@ export default function Home() {
       if (result.authenticated && result.user) {
         setUser(result.user);
         setSessionExpiresAt(result.expiresAt);
+        setDataState('loading');
         setAuthState('authenticated');
       } else {
         setUser(null);
@@ -141,12 +143,52 @@ export default function Home() {
     }
   }, [handleRequestError]);
 
-  useEffect(() => { void checkSession(); }, [checkSession]);
-  useEffect(() => { if (authState === 'authenticated') void loadCoreData(); }, [authState, loadCoreData]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void apiRequest<{ authenticated: boolean; user: PublicUser | null; expiresAt: string | null }>(
+      '/api/auth/session', { signal: controller.signal },
+    ).then((result) => {
+      if (controller.signal.aborted) return;
+      setUser(result.authenticated ? result.user : null);
+      setSessionExpiresAt(result.authenticated ? result.expiresAt : null);
+      if (result.authenticated && result.user) setDataState('loading');
+      setAuthState(result.authenticated && result.user ? 'authenticated' : 'anonymous');
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted) return;
+      setSessionError(errorMessage(error));
+      setAuthState('error');
+    });
+    return () => controller.abort();
+  }, []);
+  useEffect(() => {
+    if (authState !== 'authenticated') return;
+    const controller = new AbortController();
+    void Promise.all([
+      apiRequest<{ measurements: Measurement[] }>('/api/measurements', { signal: controller.signal }),
+      apiRequest<{ permissions: Permission[] }>('/api/permissions', { signal: controller.signal }),
+      apiRequest<{ events: AuditEvent[] }>('/api/audit?limit=100', { signal: controller.signal }),
+    ]).then(([measurementResult, permissionResult, auditResult]) => {
+      if (controller.signal.aborted) return;
+      setMeasurements(measurementResult.measurements);
+      setPermissions(permissionResult.permissions);
+      setAuditEvents(auditResult.events);
+      setDataState('ready');
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted) return;
+      setDataError(handleRequestError(error));
+      setDataState('error');
+    });
+    return () => controller.abort();
+  }, [authState, handleRequestError]);
   useEffect(() => { busyRef.current = busy; }, [busy]);
   useEffect(() => {
-    if (authState === 'authenticated' && dataState === 'ready' && activeView === 'audit') void refreshAudit();
-  }, [activeView, authState, dataState, refreshAudit]);
+    if (authState !== 'authenticated' || dataState !== 'ready' || activeView !== 'audit') return;
+    const controller = new AbortController();
+    void apiRequest<{ events: AuditEvent[] }>('/api/audit?limit=100', { signal: controller.signal })
+      .then((result) => { if (!controller.signal.aborted) setAuditEvents(result.events); })
+      .catch((error: unknown) => { if (!controller.signal.aborted) setDataError(handleRequestError(error)); });
+    return () => controller.abort();
+  }, [activeView, authState, dataState, handleRequestError]);
 
   useEffect(() => {
     if (authState !== 'authenticated') return;
@@ -167,7 +209,7 @@ export default function Home() {
         .finally(() => { if (!controller.signal.aborted) setRecordsLoading(false); });
     }, 250);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [authState, handleRequestError, query, recordFilter]);
+  }, [authState, handleRequestError, query, recordFilter, recordsRevision]);
 
   useEffect(() => {
     if (!mobileNavOpen) return;
@@ -283,7 +325,7 @@ export default function Home() {
     if (auditFilter === 'All Activity') return true;
     if (auditFilter === 'Failed') return row.risk;
     if (auditFilter === 'Views') return row.rawAction.endsWith('.list');
-    return row.rawAction.endsWith('.create') || row.rawAction.endsWith('.revoke') || row.rawAction.endsWith('.expire');
+    return row.rawAction.endsWith('.create') || row.rawAction.endsWith('.update') || row.rawAction.endsWith('.void') || row.rawAction.endsWith('.revoke') || row.rawAction.endsWith('.expire');
   });
 
   function showToast(message: string) { setToast(message); window.setTimeout(() => setToast(''), 2600); }
@@ -303,7 +345,7 @@ export default function Home() {
     event.preventDefault(); if (busy) return; setBusy('login'); setSessionError('');
     try {
       const result = await apiRequest<{ user: PublicUser; expiresAt: string }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-      setUser(result.user); setSessionExpiresAt(result.expiresAt); setAuthState('authenticated'); showToast('Signed in successfully');
+      setUser(result.user); setSessionExpiresAt(result.expiresAt); setDataState('loading'); setAuthState('authenticated'); showToast('Signed in successfully');
     } catch (error) { setSessionError(errorMessage(error)); } finally { setBusy(''); }
   }
 
@@ -421,7 +463,7 @@ export default function Home() {
         {modal === 'measure' && <MeasurementModal form={measurementForm} busy={busy === 'measurement'} onChange={(patch) => setMeasurementForm((current) => ({ ...current, ...patch }))} onSubmit={handleMeasurementSubmit} onCancel={() => setModal(null)} />}
         {modal === 'record' && <RecordModal form={recordForm} busy={busy === 'record'} onChange={(patch) => setRecordForm((current) => ({ ...current, ...patch }))} onSubmit={handleRecordSubmit} onCancel={() => setModal(null)} />}
         {modal === 'grant' && <PermissionModal form={permissionForm} busy={busy === 'permission'} onChange={(patch) => setPermissionForm((current) => ({ ...current, ...patch }))} onToggleScope={togglePermissionScope} onSubmit={handlePermissionSubmit} onCancel={() => setModal(null)} />}
-        {modal === 'detail' && selectedRecord && <RecordDetailModal record={selectedRecord} onDone={() => setModal(null)} />}
+        {modal === 'detail' && selectedRecord && <RecordEditor key={selectedRecord.id} initialRecord={selectedRecord} onDone={() => setModal(null)} onBusyChange={setBusy} onError={handleRequestError} onUpdated={(record) => { setSelectedRecord(record); setRecords((current) => current.map((item) => item.id === record.id ? record : item)); setRecordsRevision((value) => value + 1); showToast('Record saved'); void refreshAudit(); }} />}
       </ModalShell>}
       {toast && <div className="toast" role="status" aria-live="polite" aria-atomic="true">✓ {toast}</div>}
       <footer className="site-footer">Personal Health Service · Privacy-focused health record management · Not medical advice</footer>
