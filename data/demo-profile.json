@@ -1,0 +1,12 @@
+{
+  "name": "Robert Lee",
+  "gender": "male",
+  "birthDate": "1964-05-18",
+  "heightCm": 174,
+  "weightKg": 76.5,
+  "bloodType": "O",
+  "medicalHistory": "Fictional demonstration profile.\nHyperlipidemia documented in July 2025, with follow-up lipid checks.\nThe September 2026 examination noted mildly elevated fasting glucose. No diabetes diagnosis is recorded.\nNo major surgery is recorded in this demonstration history.",
+  "familyHistory": "Fictional demonstration history.\nFather: hypertension diagnosed in later adulthood.\nMother: type 2 diabetes diagnosed in later adulthood.\nNo other family conditions have been entered.",
+  "allergies": "Penicillin: a rash was reported after previous use, as recorded in the existing allergy entry.\nNo additional allergies have been entered.",
+  "medications": "Atorvastatin 10 mg, once each evening, recorded on August 21, 2026 in the existing medication entry.\nFictional medication history for demonstration only."
+}

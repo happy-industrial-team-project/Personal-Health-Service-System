@@ -32,6 +32,7 @@ test('record editing, snapshots, ownership, conflicts, audit, migration and pers
     ALTER TABLE health_records DROP COLUMN version;
     ALTER TABLE health_records DROP COLUMN voided_at;
     ALTER TABLE health_records DROP COLUMN void_reason;
+    DROP TABLE health_profiles;
     DELETE FROM schema_migrations WHERE version >= 3;`);
   database.close(); delete globalThis.__phssDatabaseState;
   database = getDatabase();

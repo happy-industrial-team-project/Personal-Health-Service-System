@@ -4,6 +4,7 @@ import type { TrendKey, View } from './types';
 
 export const navItems: Array<{ id: View; label: string; hint: string }> = [
   { id: 'overview', label: 'Dashboard', hint: 'OV' },
+  { id: 'profile', label: 'Health Profile', hint: 'PF' },
   { id: 'records', label: 'Health Records', hint: 'HR' },
   { id: 'trends', label: 'Health Trends', hint: 'TR' },
   { id: 'permissions', label: 'Permissions', hint: 'PM' },
@@ -38,6 +39,7 @@ export const recordSourceLabels: Record<HealthRecord['source'], string> = {
 };
 
 export const pageTitle: Record<View, [string, string]> = {
+  profile: ['Health Profile', 'Manage your personal details, medical history, allergies, and current medications'],
   overview: ['Dashboard', 'A snapshot of your latest health data, reminders, and services'],
   records: ['Health Records', 'Manage medical history, medications, allergies, and reports in one place'],
   trends: ['Health Trends', 'Review saved blood pressure, glucose, and heart-rate measurements'],
@@ -47,6 +49,8 @@ export const pageTitle: Record<View, [string, string]> = {
 };
 
 export const actionLabels: Record<string, string> = {
+  'profile.list': 'Viewed health profile',
+  'profile.update': 'Updated health profile',
   'auth.login': 'Signed in',
   'auth.logout': 'Signed out',
   'record.list': 'Viewed health records',

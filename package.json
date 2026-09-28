@@ -14,6 +14,8 @@
     "typecheck": "tsc --noEmit --incremental false",
     "db:check": "node scripts/database-check.mjs",
     "test:records": "node --import ./scripts/register-typescript.mjs --test scripts/record-history.test.mjs",
+    "test:profile": "node --import ./scripts/register-typescript.mjs --test scripts/profile.test.mjs",
+    "seed:demo-profile": "node --import ./scripts/register-typescript.mjs scripts/seed-demo-profile.mjs",
     "check": "tsc --noEmit --incremental false && eslint . --ignore-pattern dist --ignore-pattern .next && vinext check"
   },
   "dependencies": {

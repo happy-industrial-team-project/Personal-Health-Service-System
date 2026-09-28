@@ -6,7 +6,7 @@ import type { DatabaseBootstrapV1 } from './types';
 const DEFAULT_DATABASE_FILE = path.join('data', 'phss.sqlite');
 const DEFAULT_LEGACY_FILE = path.join('data', 'store.json');
 const SEED_FILE = path.join(process.cwd(), 'data', 'seed.json');
-const LATEST_SCHEMA_VERSION = 4;
+const LATEST_SCHEMA_VERSION = 5;
 const CONNECTION_CONFIG_VERSION = 1;
 
 type DatabaseState = {
@@ -266,6 +266,18 @@ function applyMigrations(database: DatabaseSync): void {
         ALTER TABLE health_records ADD COLUMN void_reason TEXT;
         INSERT INTO schema_migrations (version, name, applied_at)
         VALUES (4, 'health_record_voiding', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+      `);
+    }
+    if (currentVersion < 5) {
+      database.exec(`
+        CREATE TABLE health_profiles (
+          owner_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          profile_json TEXT NOT NULL CHECK (json_valid(profile_json)),
+          version INTEGER NOT NULL CHECK (version > 0),
+          updated_at TEXT NOT NULL
+        ) STRICT;
+        INSERT INTO schema_migrations (version, name, applied_at)
+        VALUES (5, 'personal_health_profiles', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
       `);
     }
     database.exec('COMMIT');

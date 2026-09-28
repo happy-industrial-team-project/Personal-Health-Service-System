@@ -1,6 +1,6 @@
 import type { RecordType } from '@/lib/client/api';
 
-export type View = 'overview' | 'records' | 'trends' | 'permissions' | 'audit' | 'security';
+export type View = 'overview' | 'profile' | 'records' | 'trends' | 'permissions' | 'audit' | 'security';
 export type Modal = 'measure' | 'record' | 'grant' | 'detail' | null;
 export type AuthState = 'checking' | 'anonymous' | 'authenticated' | 'error';
 export type LoadState = 'idle' | 'loading' | 'ready' | 'error';

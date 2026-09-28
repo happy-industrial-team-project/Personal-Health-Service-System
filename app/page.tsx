@@ -9,6 +9,7 @@ import { HealthTrendsView } from './components/health/HealthTrendsView';
 import { PermissionsView } from './components/health/PermissionsView';
 import { RecordsView } from './components/health/RecordsView';
 import { SecurityView } from './components/health/SecurityView';
+import { ProfileView } from './components/health/ProfileView';
 import { MeasurementModal } from './components/health/modals/MeasurementModal';
 import { ModalShell } from './components/health/modals/ModalShell';
 import { PermissionModal } from './components/health/modals/PermissionModal';
@@ -450,6 +451,7 @@ export default function Home() {
           {dataState === 'error' && <section className="panel" role="alert"><h2>Health data could not be loaded</h2><p>{dataError}</p><button className="primary" type="button" onClick={() => void loadCoreData()}>Try Again</button></section>}
           {dataState === 'ready' && <>
             {activeView !== 'overview' && <header className="page-heading"><div><p className="eyebrow">PERSONAL HEALTH SERVICE</p><h1>{pageTitle[activeView][0]}</h1><p>{pageTitle[activeView][1]}</p></div><span className="status-label">PRIVATE HEALTH DATA</span></header>}
+            {activeView === 'profile' && <ProfileView onError={handleRequestError} onSaved={(name) => { setUser((current) => current ? { ...current, name } : current); void refreshAudit(); }} />}
             {activeView === 'overview' && <Dashboard userName={user?.name ?? ''} metrics={dashboardTrendData} measurements={measurements} records={records} activePermissions={activePermissions} onSelectTrend={selectTrend} onOpenMeasurement={() => openModal('measure')} onOpenRecords={() => switchView('records')} onOpenPermissions={() => switchView('permissions')} onOpenRecord={openRecord} />}
             {activeView === 'records' && <RecordsView records={records} error={recordsError} loading={recordsLoading} filter={recordFilter} onFilterChange={setRecordFilter} onAddRecord={() => openModal('record')} onOpenRecord={openRecord} />}
             {activeView === 'trends' && <HealthTrendsView trend={trend} trendData={trendData} measurements={selectedTrendMeasurements} rows={selectedTrendRows} onTrendChange={setTrend} onAddMeasurement={() => openModal('measure')} />}

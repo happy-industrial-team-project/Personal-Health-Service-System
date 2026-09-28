@@ -55,6 +55,23 @@ The repository includes a portable pnpm copy under `tools/pnpm`, so a global pnp
 
 ## Local data, migration, and reset
 
+### Health profile
+
+Open **Health Profile** in the navigation to save your name, gender, birth date,
+height (cm), weight (kg), ABO blood type, medical and family history, allergies,
+and current medications. Only the name is required. Empty health fields mean
+not provided, not an absence of conditions. Saving the name also updates the
+account display name. These self-reported fields are separate from health records
+and measurement charts. Each account has its own persisted profile; saving and
+auditing are atomic, and stale edits are rejected. Schema version 5 adds this
+table automatically without changing existing health records.
+
+The version-controlled fictional profile in `data/demo-profile.json` can be added
+to the demo account with `node tools/pnpm/bin/pnpm.mjs run seed:demo-profile`.
+This only fills an empty profile and keeps any profile you have already saved.
+
+Run `node tools/pnpm/bin/pnpm.mjs run test:profile` for profile integration tests.
+
 ### Edit records and view version history
 
 Open **Health Records**, select a record, and choose **Edit Record**. You can change
